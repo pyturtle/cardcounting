@@ -23,7 +23,10 @@ def extract_cards(preprocessed_img):
     
     return white_background
 
-monitor = {'top': 500, 'left': 495, 'width': 500, 'height': 32}
+monitor = {'top': 500, 'left': 495, 'width': 600, 'height': 32}
+player_dealer_count_region = {'top': 615, 'left': 490, 'width': 300, 'height': 30}
+
+
 
 while True:
     with mss.mss() as sct:
@@ -31,12 +34,19 @@ while True:
         img = np.array(screenshot)
         preprocessed_img = preprocess_image(img)
         final_img = extract_cards(preprocessed_img)
-        img_rgb = cv2.cvtColor(preprocessed_img, cv2.COLOR_BGR2RGB)
         config = '--psm 6 -c tessedit_char_whitelist=0123456789JQKA'
         text = pytesseract.image_to_string(final_img, config=config)
         print(text)
         cv2.imshow("Original Screenshot", img)
         cv2.imshow("Preprocessed Screenshot", preprocessed_img)
         cv2.imshow("Final Image", final_img)
+
+
+        count_img = np.array(sct.grab(player_dealer_count_region))
+        count_text = pytesseract.image_to_string(count_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
+        print(count_text)
+
+        cv2.imshow("Player/Dealer Count", count_img)
+
         cv2.waitKey(0)
         cv2.destroyAllWindows()
