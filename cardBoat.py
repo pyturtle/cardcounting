@@ -13,9 +13,11 @@ card_values = {
 }
 
 count = 0
-overlay_text = ""
-cards_region = {'top': 500, 'left': 495, 'width': 1000, 'height': 32}
+cards_region = {'top': 500, 'left': 495, 'width': 600, 'height': 32}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 300, 'height': 30}
+cards_remaining_region = {'top': 640, 'left': 490, 'width': 60, 'height': 30}
+
+overlay_text = ""
 update_flag = False
 
 def preprocess_image(img):
@@ -40,40 +42,57 @@ def extract_cards(preprocessed_img):
 def update_count():
     global count, overlay_text, update_flag
     with mss.mss() as sct:
+        # Grab the screenshot of the cards
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
         final_img = extract_cards(preprocessed_img)
+
+        # Extract the card text
         config = '--psm 6 -c tessedit_char_whitelist=0123456789JQKA'
         card_text = pytesseract.image_to_string(final_img, config=config)
 
+        # Grab the screenshot of the player/dealer count
         count_img = np.array(sct.grab(player_dealer_count_region))
         count_text = pytesseract.image_to_string(count_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
 
+        # Grab the screenshot of the cards remaining
+        cards_remaining_img = np.array(sct.grab(cards_remaining_region))
+        cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
+
+        # Calculate the count
         cards = card_text.replace("\n", "").split(" ")
         for card in cards:
             if card in card_values:
                 count += card_values[card]
         true_count = count / 3 
 
-        print(count_text)
         print(cards)
+        print(count_text)
         print(count)
-        print(true_count)
+        print(cards_remaining_text)
 
-        overlay_text = f"Count: {count}  True Count: {true_count:.2f}"
+
+        overlay_text = f"Count: {count}  \nTrue Count: {true_count:.2f} \nCards Remaining: {cards_remaining_text}"
         update_flag = True
 
 def display_overlay():
     global update_flag, overlay_text
     while True:
-        overlay_img = np.zeros((100, 400, 3), dtype=np.uint8)
+        overlay_img = np.zeros((1000, 400, 3), dtype=np.uint8)
         if update_flag:
-            cv2.putText(overlay_img, overlay_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+            y0, dy = 30, 30
+            for i, line in enumerate(overlay_text.split('\n')):
+                y = y0 + i*dy
+                cv2.putText(overlay_img,  line, (50, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
             update_flag = False
         else:
             # If not updated, keep the last overlay text
-            cv2.putText(overlay_img, overlay_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+            y0, dy = 30, 30
+            for i, line in enumerate(overlay_text.split('\n')):
+                y = y0 + i*dy
+                cv2.putText(overlay_img,  line, (50, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow("Count Overlay", overlay_img)
+        cv2.moveWindow("Count Overlay", -200, 0)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
         time.sleep(0.1)
