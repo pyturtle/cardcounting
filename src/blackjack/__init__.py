@@ -1,5 +1,4 @@
 from .display import display_overlay
-from .card_counting import update_count
 from .decision_making import make_decision, check_win_loss ,preprocess_image, extract_cards
 from .betting import place_bet
 

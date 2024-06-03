@@ -44,7 +44,7 @@ def extract_cards(preprocessed_img):
     return white_background
 
 
-def make_decision(count, cards_remaining, player_hand, dealer_hand):
+def make_decision(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
         with mss.mss() as sct:
             cards_img = np.array(sct.grab(cards_region))
             preprocessed_img = preprocess_image(cards_img)
@@ -60,39 +60,32 @@ def make_decision(count, cards_remaining, player_hand, dealer_hand):
             cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
 
         
+        # Calculate the running count
         cards = card_text.replace("\n", "").split(" ")
         for card in cards:
             if card in card_count_values:
                 count[0] += card_count_values[card]
 
+        print(cards)
         
         true_count = count[0] / 3
-        player_amount, dealer_amount = map(int, player_dealer_text.split(" ")) 
-
-
-
-
+        player_amount[0], dealer_amount[0] = tuple(map(int, player_dealer_text.split(" ")))
+        cards_remaining[0] = int(cards_remaining_text)
 
         running_count = 0
         for card in cards:
-            if running_count < player_amount:
+            if running_count < player_amount[0]:
                 running_count += card_values[card]
                 player_hand.append(card)
             else:
-                player_hand.pop()
                 break
          
-        for card in cards.reverse():
-            if running_count < dealer_amount:
-                running_count += card_values[card]
-                dealer_hand.append(card)
-            else:
-                dealer_hand.pop()
-                break
+        for card in cards[len(player_hand):]:
+            dealer_hand.append(card)
+        print(dealer_hand)
 
             
 
-        cards_remaining[0] = int(cards_remaining_text)
 
 
 
