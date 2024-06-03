@@ -17,11 +17,10 @@ card_values = {
 }
 
 
-cards_region = {'top': 500, 'left': 495, 'width': 600, 'height': 32}
+cards_region = {'top': 555, 'left': 495, 'width': 600, 'height': 17}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 300, 'height': 30}
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 200, 'height': 35}
-overlay_text = ""
-update_flag = False
+
 
 
 def preprocess_image(img):
@@ -66,81 +65,172 @@ def check_win_loss_tie(player_amount, dealer_amount, stood):
     else:
         return "Playing"
 
-def make_decision(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
-        with mss.mss() as sct:
-            cards_img = np.array(sct.grab(cards_region))
-            preprocessed_img = preprocess_image(cards_img)
-            final_img = extract_cards(preprocessed_img)
 
-            config = '--psm 6 -c tessedit_char_whitelist=0123456789JQKA'
-            card_text = pytesseract.image_to_string(final_img, config=config)
+def make_decision(count, player_amount, dealer_amount, player_hand, dealer_hand, ace_count):
+    """
+    Makes a decision based on the current state of the game.
 
-            player_dealer_img = np.array(sct.grab(player_dealer_count_region))
-            player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
+    Args:
+        count (list): A list containing the running count of the cards.
+        player_amount (list): A list containing the player's current hand value.
+        dealer_amount (list): A list containing the dealer's current hand value.
+        player_hand (list): A list representing the player's hand.
+        dealer_hand (list): A list representing the dealer's hand.
 
-            cards_remaining_img = np.array(sct.grab(cards_remaining_region))
-            cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
+    Returns:
+        str: The decision made by the function. Possible values are "Stand", "Hit", "Double Down", or "Split".
+    """
+    player_total = player_amount[0]
+    dealer_showing = card_values[dealer_hand[0]]
+    
+    # Check for splitting
+    if len(player_hand) == 2 and player_hand[0] == player_hand[1]:
+        if player_hand[0] in ['A', '8']:
+            return "Split"
+        elif player_hand[0] in ['2', '3', '7'] and dealer_showing in [2, 3, 4, 5, 6, 7]:
+            return "Split"
+        elif player_hand[0] in ['4'] and dealer_showing in [5, 6]:
+            return "Split"
+        elif player_hand[0] in ['6'] and dealer_showing in [2, 3, 4, 5, 6]:
+            return "Split"
+        elif player_hand[0] in ['9'] and dealer_showing not in [7, 10, 'A']:
+            return "Split"
 
+
+
+    # Check for doubling down
+    if len(player_hand) == 2:
+        if player_total in [9]:
+            if dealer_showing in [3, 4, 5, 6]:
+                return "Double Down"
+            elif count >= 1 and dealer_showing == 2:
+                return "Double Down"
+            elif count >= 3 and dealer_showing == 7:
+                return "Double Down"
+        elif player_total in [10] and dealer_showing not in [10, 'A']:
+            return "Double Down"
+        elif player_total in [11] and dealer_showing != 'A':
+            return "Double Down"
+
+    # Check for standing and hitting
+    if player_total >= 17:
+        return "Stand"
+    elif player_total <= 11:
+        return "Hit"
+    elif player_total == 12:
+        if dealer_showing in [4, 5, 6]:
+            return "Stand"
+        else:
+            return "Hit"
+    elif 13 <= player_total <= 16:
+        if dealer_showing in [2, 3, 4, 5, 6]:
+            return "Stand"
+        else:
+            return "Hit"
+    
+    # Variations based on the count
+    true_count = count[0] / 3
+    if true_count >= 2:
+        if player_total in [15] and dealer_showing == 10:
+            return "Stand"
+        elif player_total in [16] and dealer_showing in [9, 10, 'A']:
+            return "Stand"
+
+    return "Hit"
         
-        # Calculate the running count
-        cards = card_text.replace("\n", "").split(" ")
-        print(cards)
-
-        for card in cards:
-            if card in card_count_values:
-                count[0] += card_count_values[card]
 
 
-        true_count = count[0] / 3
-        
-        if "Blackjack" in player_dealer_text:
-            if player_dealer_text.count("Blackjack") == 2:
-                return "Tie"
-            if "Blackjack" in player_dealer_text.split("V")[1]:
-                return "Win"
+def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
+    """
+    Makes a decision based on the current state of the game.
+
+    Args:
+        count (list): A list containing the running count of the cards.
+        cards_remaining (list): A list containing the number of cards remaining in the deck.
+        player_hand (list): A list representing the player's hand.
+        dealer_hand (list): A list representing the dealer's hand.
+        player_amount (list): A list containing the player's current hand value.
+        dealer_amount (list): A list containing the dealer's current hand value.
+        stood (bool): A boolean indicating whether the player has stood or not.
+
+    Returns:
+        str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
+    """
+    with mss.mss() as sct:
+        cards_img = np.array(sct.grab(cards_region))
+        preprocessed_img = preprocess_image(cards_img)
+        final_img = extract_cards(preprocessed_img)
+
+        config = '--psm 6 -c tessedit_char_whitelist=0123456789JQKA'
+        card_text = pytesseract.image_to_string(final_img, config=config)
+
+        player_dealer_img = np.array(sct.grab(player_dealer_count_region))
+        player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
+
+        cards_remaining_img = np.array(sct.grab(cards_remaining_region))
+        cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
+
+
+    # Calculate the running count
+    cards = card_text.replace("\n", "").split(" ")
+
+    for card in cards:
+        if card in card_count_values:
+            count[0] += card_count_values[card]
+
+
+    true_count = count[0] / 3
+
+    if "Blackjack" in player_dealer_text:
+        if player_dealer_text.count("Blackjack") == 2:
+            return "Tie"
+        if "Blackjack" in player_dealer_text.split("V")[1]:
+            return "Win"
+        else:
+            return "Loss"
+
+    player_amount[0], dealer_amount[0] =list(map(int, re.findall(r'\d+', player_dealer_text)))
+    cards_remaining[0] = int(cards_remaining_text)
+
+    # Figure out the player's hand and the dealer's hand
+    player_hand.clear()
+    dealer_hand.clear()
+    ace_count = 0
+    running_count = 0
+    for card in cards:
+        if running_count < player_amount[0]:
+            if card == 'A':
+                if running_count + card_values[card][1] <= player_amount[0]:
+                    ace_count += 1
+                    running_count += card_values[card][1]
+                    player_hand.append(card)
+                elif running_count + card_values[card][0] <= player_amount[0]:
+                    running_count += card_values[card][0]
+                    player_hand.append(card)
             else:
-                return "Loss"
-            
-        player_amount[0], dealer_amount[0] =list(map(int, re.findall(r'\d+', player_dealer_text)))
-        cards_remaining[0] = int(cards_remaining_text)
+                if ((running_count + card_values[card]) > (player_amount[0])) & ace_count > 0:
+                    ace_count -= 1
+                    running_count += card_values[card]
+                    running_count -= 10
+                    player_hand.append(card)
+                elif running_count + card_values[card] <= player_amount[0]:
+                    running_count += card_values[card]
+                    player_hand.append(card)
+        else:
+            break
 
-        #Figure out the player's hand and the dealer's hand
-        player_hand.clear()
-        dealer_hand.clear()
-        ace_count = 0
-        running_count = 0
-        for card in cards:
-            print(running_count, player_amount[0], card_values[card], card)
-            if running_count < player_amount[0]:
-                if card == 'A':
-                    if running_count + card_values[card][1] <= player_amount[0]:
-                        ace_count += 1
-                        running_count += card_values[card][1]
-                        player_hand.append(card)
-                    elif running_count + card_values[card][0] <= player_amount[0]:
-                        running_count += card_values[card][0]
-                        player_hand.append(card)
-                else:
-                    if ((running_count + card_values[card]) > (player_amount[0])) & ace_count > 0:
-                        ace_count -= 1
-                        running_count += card_values[card]
-                        running_count -= 10
-                        player_hand.append(card)
-                    elif running_count + card_values[card] <= player_amount[0]:
-                        running_count += card_values[card]
-                        player_hand.append(card)
-            else:
-                break
-         
-        for card in cards[len(player_hand):]:
-            dealer_hand.append(card)
+    for card in cards[len(player_hand):]:
+        dealer_hand.append(card)
 
 
-        result = check_win_loss_tie(player_amount, dealer_amount, stood)
+    result = check_win_loss_tie(player_amount, dealer_amount, stood)
 
-        # if result != "Playing":
-        #     return result
+    if result != "Playing":
         return result
+    else:
+        decision = make_decision(count, player_amount, dealer_amount, player_hand, dealer_hand, ace_count)
+        
+
         
 
             

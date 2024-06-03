@@ -10,7 +10,7 @@ def preprocess_image(img):
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
     black_bar = np.zeros((35, inverted.shape[1]), dtype=np.uint8)
-    inverted_with_black_bar = np.vstack((inverted, black_bar))
+    inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
 def extract_cards(preprocessed_img):
@@ -26,7 +26,7 @@ def extract_cards(preprocessed_img):
 
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 200, 'height': 35}
 
-monitor = {'top': 500, 'left': 495, 'width': 600, 'height': 32}
+monitor = {'top': 555, 'left': 495, 'width': 600, 'height': 17}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 300, 'height': 30}
 
 
