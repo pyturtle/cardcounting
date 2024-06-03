@@ -2,6 +2,7 @@ import cv2
 import mss
 import pytesseract
 import numpy as np
+import re
 from pynput import keyboard
 
 def preprocess_image(img):
@@ -45,9 +46,10 @@ while True:
 
 
         count_img = np.array(sct.grab(player_dealer_count_region))
-        count_text = pytesseract.image_to_string(count_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
-        print(count_text)
-
+        count_text = pytesseract.image_to_string(count_img, config='--psm 6')
+        # numbers = list(map(int, re.findall(r'\d+', count_text)))
+        # print(numbers)
+        print (count_text.split("V"))
 
 
         cards_remaining_img = np.array(sct.grab(cards_remaining_region))

@@ -2,6 +2,7 @@ import cv2
 import mss
 import pytesseract
 import numpy as np
+import re
 
 card_count_values = {
     '2': 1, '3': 1, '4': 1, '5': 1, '6': 1,
@@ -43,8 +44,29 @@ def extract_cards(preprocessed_img):
 
     return white_background
 
+def check_win_loss_tie(player_amount, dealer_amount, stood):
+    if player_amount[0] > 21:
+        return "Loss"
+    elif dealer_amount[0] > 21:
+        return "Win"
+    elif stood[0]:
+        if player_amount[0] > dealer_amount[0]:
+            return "Win"
+        elif player_amount[0] < dealer_amount[0]:
+            return "Loss"
+        else:
+            return "Tie"
+    elif player_amount[0] == 21:
+        if player_amount[0] > dealer_amount[0]:
+            return "Win"
+        else:
+            return "Tie"
+    elif dealer_amount[0] == 21 and stood[0] == False:
+        return "Loss"
+    else:
+        return "Playing"
 
-def make_decision(count, previous_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
+def make_decision(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
         with mss.mss() as sct:
             cards_img = np.array(sct.grab(cards_region))
             preprocessed_img = preprocess_image(cards_img)
@@ -54,7 +76,7 @@ def make_decision(count, previous_count, cards_remaining, player_hand, dealer_ha
             card_text = pytesseract.image_to_string(final_img, config=config)
 
             player_dealer_img = np.array(sct.grab(player_dealer_count_region))
-            player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
+            player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
 
             cards_remaining_img = np.array(sct.grab(cards_remaining_region))
             cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
@@ -62,28 +84,33 @@ def make_decision(count, previous_count, cards_remaining, player_hand, dealer_ha
         
         # Calculate the running count
         cards = card_text.replace("\n", "").split(" ")
+        print(cards)
 
-        if stood == [True]:
-            for card in cards:
-                if card in card_count_values:
-                    previous_count[0] += card_count_values[card]
-            
-        else:
-            for card in cards:
-                if card in card_count_values:
-                    count[0] += card_count_values[card]
+        for card in cards:
+            if card in card_count_values:
+                count[0] += card_count_values[card]
 
-        
+
         true_count = count[0] / 3
-        player_amount[0], dealer_amount[0] = tuple(map(int, player_dealer_text.split(" ")))
+        
+        if "Blackjack" in player_dealer_text:
+            if player_dealer_text.count("Blackjack") == 2:
+                return "Tie"
+            if "Blackjack" in player_dealer_text.split("V")[1]:
+                return "Win"
+            else:
+                return "Loss"
+            
+        player_amount[0], dealer_amount[0] =list(map(int, re.findall(r'\d+', player_dealer_text)))
         cards_remaining[0] = int(cards_remaining_text)
 
-
+        #Figure out the player's hand and the dealer's hand
         player_hand.clear()
         dealer_hand.clear()
         ace_count = 0
         running_count = 0
         for card in cards:
+            print(running_count, player_amount[0], card_values[card], card)
             if running_count < player_amount[0]:
                 if card == 'A':
                     if running_count + card_values[card][1] <= player_amount[0]:
@@ -94,9 +121,10 @@ def make_decision(count, previous_count, cards_remaining, player_hand, dealer_ha
                         running_count += card_values[card][0]
                         player_hand.append(card)
                 else:
-                    if running_count + card_values[card] > player_amount[0] & ace_count > 0:
+                    if ((running_count + card_values[card]) > (player_amount[0])) & ace_count > 0:
                         ace_count -= 1
-                        running_count += card_values[card][0]
+                        running_count += card_values[card]
+                        running_count -= 10
                         player_hand.append(card)
                     elif running_count + card_values[card] <= player_amount[0]:
                         running_count += card_values[card]
@@ -106,7 +134,14 @@ def make_decision(count, previous_count, cards_remaining, player_hand, dealer_ha
          
         for card in cards[len(player_hand):]:
             dealer_hand.append(card)
-        print(dealer_hand)
+
+
+        result = check_win_loss_tie(player_amount, dealer_amount, stood)
+
+        # if result != "Playing":
+        #     return result
+        return result
+        
 
             
 
@@ -119,8 +154,3 @@ def make_decision(count, previous_count, cards_remaining, player_hand, dealer_ha
 
 
 
-
-def check_win_loss():
-    # Placeholder for win/loss logic
-    # This should be replaced with actual game state checking
-    return np.random.choice(["Win", "Loss"])
