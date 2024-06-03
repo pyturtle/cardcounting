@@ -44,7 +44,7 @@ def extract_cards(preprocessed_img):
     return white_background
 
 
-def make_decision(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
+def make_decision(count, previous_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
         with mss.mss() as sct:
             cards_img = np.array(sct.grab(cards_region))
             preprocessed_img = preprocess_image(cards_img)
@@ -62,21 +62,45 @@ def make_decision(count, cards_remaining, player_hand, dealer_hand, player_amoun
         
         # Calculate the running count
         cards = card_text.replace("\n", "").split(" ")
-        for card in cards:
-            if card in card_count_values:
-                count[0] += card_count_values[card]
 
-        print(cards)
+        if stood == [True]:
+            for card in cards:
+                if card in card_count_values:
+                    previous_count[0] += card_count_values[card]
+            
+        else:
+            for card in cards:
+                if card in card_count_values:
+                    count[0] += card_count_values[card]
+
         
         true_count = count[0] / 3
         player_amount[0], dealer_amount[0] = tuple(map(int, player_dealer_text.split(" ")))
         cards_remaining[0] = int(cards_remaining_text)
 
+
+        player_hand.clear()
+        dealer_hand.clear()
+        ace_count = 0
         running_count = 0
         for card in cards:
             if running_count < player_amount[0]:
-                running_count += card_values[card]
-                player_hand.append(card)
+                if card == 'A':
+                    if running_count + card_values[card][1] <= player_amount[0]:
+                        ace_count += 1
+                        running_count += card_values[card][1]
+                        player_hand.append(card)
+                    elif running_count + card_values[card][0] <= player_amount[0]:
+                        running_count += card_values[card][0]
+                        player_hand.append(card)
+                else:
+                    if running_count + card_values[card] > player_amount[0] & ace_count > 0:
+                        ace_count -= 1
+                        running_count += card_values[card][0]
+                        player_hand.append(card)
+                    elif running_count + card_values[card] <= player_amount[0]:
+                        running_count += card_values[card]
+                        player_hand.append(card)
             else:
                 break
          

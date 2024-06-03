@@ -21,12 +21,15 @@ def game_loop():
 def on_press(key):
     try:
         if key.char == 'p':
-            make_decision(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount)
+            count[0] = previous_count[0]
+            make_decision(count, previous_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
     except AttributeError:
         pass
 
 if __name__ == "__main__":
+    previous_count = [0]
     count = [0]
+    stood = [False]
     player_hand = []
     dealer_hand = []
     player_amount = [0]
