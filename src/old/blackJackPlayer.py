@@ -12,11 +12,17 @@ card_values = {
     '10': -1, 'J': -1, 'Q': -1, 'K': -1, 'A': -1
 }
 
+hit_coordinates = (520, 715)
+stand_coordinates = (615, 715)
+double_coordinates = (740, 715)
+split_coordinates = (860, 715)
+
 count = 0
 cards_region = {'top': 500, 'left': 495, 'width': 600, 'height': 32}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 300, 'height': 30}
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 60, 'height': 30}
 
+# Overlay text
 overlay_text = ""
 update_flag = False
 
@@ -106,6 +112,7 @@ def on_press(key):
         pass
 
 if __name__ == "__main__":
+
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
