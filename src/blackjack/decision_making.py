@@ -17,31 +17,88 @@ card_values = {
 }
 
 
-cards_region = {'top': 555, 'left': 495, 'width': 600, 'height': 17}
-player_dealer_count_region = {'top': 615, 'left': 490, 'width': 300, 'height': 30}
+cards_region = {'top': 535, 'left': 495, 'width': 900, 'height': 28}
+player_dealer_count_region = {'top': 615, 'left': 490, 'width': 900, 'height': 30}
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 200, 'height': 35}
 
 
 
 def preprocess_image(img):
+    """
+    Preprocesses an image by converting it to grayscale, applying a binary inverse threshold,
+    inverting the colors, and adding a black bar at the bottom.
+
+    Args:
+        img (numpy.ndarray): The input image.
+
+    Returns:
+        numpy.ndarray: The preprocessed image.
+    """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
-    black_bar = np.zeros((35, inverted.shape[1]), dtype=np.uint8)
+    black_bar = np.zeros((50, inverted.shape[1]), dtype=np.uint8)
     inverted_with_black_bar = np.vstack((inverted, black_bar))
     return inverted_with_black_bar
 
 
-def extract_cards(preprocessed_img):
+def extract_cards(preprocessed_img, spacing):
+    """
+    Extracts individual cards from a preprocessed image and arranges them horizontally with a specified spacing.
+
+    Args:
+        preprocessed_img (numpy.ndarray): The preprocessed image containing the cards.
+        spacing (int): The spacing between the extracted cards.
+
+    Returns:
+        numpy.ndarray: The image with the extracted cards arranged horizontally.
+
+    """
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    white_background = np.ones((preprocessed_img.shape[0], preprocessed_img.shape[1], 3), dtype=np.uint8) * 255
+    
+    bounding_boxes = [cv2.boundingRect(cnt) for cnt in contours]
 
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
+    bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
+    
+    total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
+    
+    original_width = preprocessed_img.shape[1]
+    if total_width > original_width:
+        spacing = (original_width - sum(bbox[2] for bbox in bounding_boxes)) // (len(bounding_boxes) - 1)
+    
+
+    new_x_positions = []
+    current_x = 0
+    for bbox in bounding_boxes:
+        new_x_positions.append(current_x)
+        current_x += bbox[2] + spacing  # width of the bounding box + spacing
+
+
+    white_background = np.ones((preprocessed_img.shape[0], original_width, 3), dtype=np.uint8) * 255
+    
+    for i, (x, y, w, h) in enumerate(bounding_boxes):
         card_region = preprocessed_img[y:y+h, x:x+w]
-        white_background[y:y+h, x:x+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
-
+        white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
+    
     return white_background
+
+def add_number(image, number):
+    # Dumb fix for the fact that pytesseract can't recognize the number 7
+    h, w = image.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    scale = 2
+    color = (0, 0, 0)
+    thickness = 5
+    
+    text_size, _ = cv2.getTextSize(str(number), font, scale, thickness)
+    text_w, text_h = text_size
+    
+    x = w - text_w - 20
+    y = h // 2 + text_h // 2
+
+    cv2.putText(image, str(number), (x, y), font, scale, color, thickness)
+    
+    return image
 
 def check_win_loss_tie(player_amount, dealer_amount, stood):
     if player_amount[0] > 21:
@@ -210,9 +267,9 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     with mss.mss() as sct:
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
-        final_img = extract_cards(preprocessed_img)
+        final_img = add_number(extract_cards(preprocessed_img, 20),"00")
 
-        config = '--psm 6 -c tessedit_char_whitelist=0123456789JQKA'
+        config = '--psm 7 -c tessedit_char_whitelist=0123456789AJQK'
         card_text = pytesseract.image_to_string(final_img, config=config)
 
         player_dealer_img = np.array(sct.grab(player_dealer_count_region))
@@ -223,7 +280,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
 
 
     # Calculate the running count
-    cards = card_text.replace("\n", "").split(" ")
+    cards = re.findall(r'10|[2-9AJQK]', card_text)
 
     for card in cards:
         if card in card_count_values:
