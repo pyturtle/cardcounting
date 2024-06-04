@@ -20,6 +20,11 @@ def extract_cards(preprocessed_img, spacing):
 
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
     
+    bounding_boxes.append(bounding_boxes[-1])
+    bounding_boxes.append(bounding_boxes[0])
+    bounding_boxes.append(bounding_boxes[1])
+
+
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
     original_width = preprocessed_img.shape[1]
@@ -72,11 +77,14 @@ while True:
         screenshot = sct.grab(monitor)
         img = np.array(screenshot)
         preprocessed_img = preprocess_image(img)
-        final_img = (add_number(extract_cards(preprocessed_img, 20), "00"))
-        config = '--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789AJQK'
+        final_img = (add_number(extract_cards(preprocessed_img, 20), "000"))
+        config = '--psm 7 -c tessedit_char_whitelist=0123456789AJQK'
         text = pytesseract.image_to_string(final_img, config=config)
         print(text)
         cards = re.findall(r'10|[2-9AJQK]', text)
+        cards.pop()
+        cards.pop()
+        cards.pop()
         print(cards)
         cv2.imshow("Original Screenshot", img)
         cv2.imshow("Preprocessed Screenshot", preprocessed_img)

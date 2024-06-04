@@ -4,7 +4,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from blackjack import display_overlay
 from blackjack import evaluate_game_state
-from blackjack import place_bet
 from pynput import keyboard
 from time import sleep
 import threading
@@ -38,6 +37,23 @@ def game_loop():
             result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
             print(result)
             if result not in ["Playing", "Hit", "Double Down", "Split", "Stand"]:
+                # Update win, loss, tie count
+                if result == "Win":
+                    win_count[0] += 1
+                elif result == "Loss":
+                    loss_count[0] += 1
+                elif result == "Tie":
+                    tie_count[0] += 1
+                previous_count[0] = count[0]
+
+                # Clear hands
+                dealer_hand.clear()
+                player_hand.clear()
+
+                # Save previous count to a text file
+                with open('cardcounting/src/blackjack/prevcount.txt', 'a') as file:
+                    file.write(str(previous_count[0]) + '\n')
+
                 break
             if result == "Hit":
                 pyautogui.click(hit)
@@ -85,13 +101,16 @@ if __name__ == "__main__":
     dealer_amount = [0]
     cards_remaining = [156]
     game = [True]
+    win_count = [0]
+    loss_count = [0]
+    tie_count = [0]
 
-    threading.Thread(target=game_loop).start()
+    # threading.Thread(target=game_loop).start()
 
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
-    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount)
+    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count)
     
 
     # game_loop()

@@ -37,10 +37,9 @@ def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
-    black_bar = np.zeros((50, inverted.shape[1]), dtype=np.uint8)
-    inverted_with_black_bar = np.vstack((inverted, black_bar))
+    black_bar = np.zeros((30, inverted.shape[1]), dtype=np.uint8)
+    inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
-
 
 def extract_cards(preprocessed_img, spacing):
     """
@@ -60,6 +59,10 @@ def extract_cards(preprocessed_img, spacing):
 
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
     
+    bounding_boxes.append(bounding_boxes[-1])
+    bounding_boxes.append(bounding_boxes[0])
+    bounding_boxes.append(bounding_boxes[1])
+
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
     original_width = preprocessed_img.shape[1]
@@ -265,23 +268,31 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
         str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
     """
     with mss.mss() as sct:
+        
+        # Grab the cards region
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
-        final_img = add_number(extract_cards(preprocessed_img, 20),"00")
-
+        final_img = (add_number(extract_cards(preprocessed_img, 20), "000"))
         config = '--psm 7 -c tessedit_char_whitelist=0123456789AJQK'
         card_text = pytesseract.image_to_string(final_img, config=config)
 
+        # Grab the player and dealer count regions
         player_dealer_img = np.array(sct.grab(player_dealer_count_region))
         player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
 
+        # Grab the cards remaining region
         cards_remaining_img = np.array(sct.grab(cards_remaining_region))
         cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
 
 
     # Calculate the running count
     cards = re.findall(r'10|[2-9AJQK]', card_text)
+    # If there is a Letter at the end it recognizes it at zero so I add two random cards to fix it don't ask
+    cards.pop() # Remove the extra card that was added to fix recognition
+    cards.pop() # Remove the extra card that was added to fix recognition
+    cards.pop() # Remove the extra card that was added to fix recognition
 
+    print(cards)
     for card in cards:
         if card in card_count_values:
             count[0] += card_count_values[card]
@@ -334,7 +345,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     if result != "Playing":
         return result
     else:
-        decision = make_decision(count[0]/(cards_remaining[0]/52), player_amount, dealer_amount, player_hand, dealer_hand, ace_count)
+        decision = make_decision(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52), player_amount, dealer_amount, player_hand, dealer_hand, ace_count)
         return decision
         
 
