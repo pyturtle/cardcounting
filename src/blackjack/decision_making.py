@@ -13,7 +13,7 @@ card_count_values = {
 card_values = {
     '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
     '7': 7, '8': 8, '9': 9, '10': 10,
-    'J': 10, 'Q': 10, 'K': 10, 'A': [1, 11]
+    'J': 10, 'Q': 10, 'K': 10, 'A': 11
 }
 
 
@@ -66,7 +66,7 @@ def check_win_loss_tie(player_amount, dealer_amount, stood):
         return "Playing"
 
 
-def make_decision(count, player_amount, dealer_amount, player_hand, dealer_hand, ace_count):
+def make_decision(true_count, player_amount, dealer_amount, player_hand, dealer_hand, ace_count):
     """
     Makes a decision based on the current state of the game.
 
@@ -82,6 +82,7 @@ def make_decision(count, player_amount, dealer_amount, player_hand, dealer_hand,
     """
     player_total = player_amount[0]
     dealer_showing = card_values[dealer_hand[0]]
+
     
     # Check for splitting
     if len(player_hand) == 2 and player_hand[0] == player_hand[1]:
@@ -95,22 +96,58 @@ def make_decision(count, player_amount, dealer_amount, player_hand, dealer_hand,
             return "Split"
         elif player_hand[0] in ['9'] and dealer_showing not in [7, 10, 'A']:
             return "Split"
+        elif true_count >= 4 and player_hand[0] == '10':
+            if dealer_showing == 6:
+                return "Split"
+            elif dealer_showing == 5 and true_count >= 5:
+                return "Split"
+            elif dealer_showing == 4 and true_count >= 6:
+                return "Split"
 
-
+    # Check for doubles and standing  With ace
+    if ace_count > 0:
+        if player_total in [13, 14] and dealer_showing in [5, 6]:
+            return "Double Down"
+        elif player_total in [15, 16] and dealer_showing in [4, 5, 6]:
+            return "Double Down"
+        elif player_total in [17]:
+            if dealer_showing in [3, 4, 5, 6]:
+                return "Double Down"
+            elif dealer_showing in [2] and true_count >= 1:
+                return "Double Down"
+        elif player_total in [18]:
+            if dealer_showing in  [3, 4, 5, 6]:
+                return "Double Down"
+            elif dealer_showing in [2] and true_count >= 1:
+                return "Double Down"
+        elif player_total in [19]:
+            if dealer_showing in [5, 6] and true_count >= 1:
+                return "Double Down"
+            elif dealer_showing in [4] and true_count >= 4:
+                return "Double Down"
 
     # Check for doubling down
     if len(player_hand) == 2:
+        if player_total in [8] and true_count >= 2:
+            return "Double Down"
         if player_total in [9]:
             if dealer_showing in [3, 4, 5, 6]:
                 return "Double Down"
-            elif count >= 1 and dealer_showing == 2:
+            elif true_count >= 1 and dealer_showing == 2:
                 return "Double Down"
-            elif count >= 3 and dealer_showing == 7:
+            elif true_count >= 3 and dealer_showing == 7:
                 return "Double Down"
-        elif player_total in [10] and dealer_showing not in [10, 'A']:
-            return "Double Down"
-        elif player_total in [11] and dealer_showing != 'A':
-            return "Double Down"
+        elif player_total in [10]:
+            if dealer_showing in [2, 3, 4, 5, 6, 7, 8, 9]:
+                return "Double Down"
+            elif dealer_showing in [10,11] and true_count >= 4:
+                return "Double Down"
+        elif player_total in [11]:
+            if dealer_showing != 11:
+                return "Double Down"
+            elif true_count >= 1:
+                return "Double Down"
+            
 
     # Check for standing and hitting
     if player_total >= 17:
@@ -118,25 +155,31 @@ def make_decision(count, player_amount, dealer_amount, player_hand, dealer_hand,
     elif player_total <= 11:
         return "Hit"
     elif player_total == 12:
-        if dealer_showing in [4, 5, 6]:
+        if dealer_showing in [5, 6]:
             return "Stand"
-        else:
+        elif dealer_showing in [4] and true_count < 0:
             return "Hit"
     elif 13 <= player_total <= 16:
+        if player_total == 13 and true_count <= -1 and dealer_showing == 2:
+            return "Hit"
+        elif player_total == 16 :
+            if dealer_showing == 7 and true_count >= 9:
+                return "Stand"
+            elif dealer_showing == 8 and true_count >= 7:
+                return "Stand"
+            elif dealer_showing == 9 and true_count >= 4:
+                return "Stand"
+            elif dealer_showing == 10 and true_count > 0:
+                return "Stand"
+            else:
+                return "Hit"
+        elif player_total == 15 and dealer_showing == 10 and true_count >= 4:
+            return "Stand"
         if dealer_showing in [2, 3, 4, 5, 6]:
             return "Stand"
         else:
             return "Hit"
     
-    # Variations based on the count
-    true_count = count[0] / 3
-    if true_count >= 2:
-        if player_total in [15] and dealer_showing == 10:
-            return "Stand"
-        elif player_total in [16] and dealer_showing in [9, 10, 'A']:
-            return "Stand"
-
-    return "Hit"
         
 
 
@@ -179,8 +222,6 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
             count[0] += card_count_values[card]
 
 
-    true_count = count[0] / 3
-
     if "Blackjack" in player_dealer_text:
         if player_dealer_text.count("Blackjack") == 2:
             return "Tie"
@@ -200,15 +241,15 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     for card in cards:
         if running_count < player_amount[0]:
             if card == 'A':
-                if running_count + card_values[card][1] <= player_amount[0]:
+                if running_count + card_values[card] <= player_amount[0]:
                     ace_count += 1
-                    running_count += card_values[card][1]
+                    running_count += card_values[card]
                     player_hand.append(card)
-                elif running_count + card_values[card][0] <= player_amount[0]:
-                    running_count += card_values[card][0]
+                elif running_count + 1 <= player_amount[0]:
+                    running_count += 1
                     player_hand.append(card)
             else:
-                if ((running_count + card_values[card]) > (player_amount[0])) & ace_count > 0:
+                if ((running_count + card_values[card]) > (player_amount[0])) and ace_count > 0:
                     ace_count -= 1
                     running_count += card_values[card]
                     running_count -= 10
@@ -228,7 +269,8 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     if result != "Playing":
         return result
     else:
-        decision = make_decision(count, player_amount, dealer_amount, player_hand, dealer_hand, ace_count)
+        decision = make_decision(count[0]/(cards_remaining[0]/52), player_amount, dealer_amount, player_hand, dealer_hand, ace_count)
+        return decision
         
 
         

@@ -21,7 +21,7 @@ def on_press(key):
             count[0] = previous_count[0]
             result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
             print(result)
-            if result != "Playing":
+            if result not in ["Playing", "Hit", "Double Down", "Split", "Stand"]:
                 previous_count[0] = count[0]
         if key.char == 's':
             stood[0] = True
