@@ -251,7 +251,7 @@ def make_decision(true_count, player_amount, dealer_amount, player_hand, dealer_
         
 
 
-def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood):
+def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split = False):
     """
     Makes a decision based on the current state of the game.
 
@@ -291,20 +291,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     cards.pop() # Remove the extra card that was added to fix recognition
     cards.pop() # Remove the extra card that was added to fix recognition
     cards.pop() # Remove the extra card that was added to fix recognition
-
     print(cards)
-    for card in cards:
-        if card in card_count_values:
-            count[0] += card_count_values[card]
-
-
-    if "Blackjack" in player_dealer_text:
-        if player_dealer_text.count("Blackjack") == 2:
-            return "Tie"
-        if "Blackjack" in player_dealer_text.split("V")[1]:
-            return "Win"
-        else:
-            return "Loss"
 
     player_amount[0], dealer_amount[0] =list(map(int, re.findall(r'\d+', player_dealer_text)))
     cards_remaining[0] = int(cards_remaining_text)
@@ -339,6 +326,29 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     for card in cards[len(player_hand):]:
         dealer_hand.append(card)
 
+    if split:
+        for card in player_hand[1:]:
+            count[0] += card_count_values[card]
+        
+        for card in dealer_hand[1:]:
+            count[0] += card_count_values[card]
+    else:
+        for card in player_hand:
+            count[0] += card_count_values[card]
+        
+        for card in dealer_hand:
+            count[0] += card_count_values[card]
+
+
+    if "Blackjack" in player_dealer_text:
+        if player_dealer_text.count("Blackjack") == 2:
+            return "Tie"
+        if "Blackjack" in player_dealer_text.split("V")[1]:
+            return "Win"
+        else:
+            return "Loss"
+
+
 
     result = check_win_loss_tie(player_amount, dealer_amount, stood)
 
@@ -348,17 +358,3 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
         decision = make_decision(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52), player_amount, dealer_amount, player_hand, dealer_hand, ace_count)
         return decision
         
-
-        
-
-            
-
-
-
-
-
-
-
-
-
-

@@ -23,11 +23,23 @@ def place_bet(amount):
     pyautogui.typewrite(f"/blackjack {amount}", interval=0.1)
     pyautogui.press('enter')
 
+def split_hand(hands):
+    while True:
+        result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
+        if result == "Hit":
+            pyautogui.click(hit)
+        elif result == "Stand":
+            pyautogui.click(stand)
+        elif result == "Double Down":
+            pyautogui.click(double_down)
+        elif result == "Split":
+            split_hand(hands)
+        sleep(3)
 
 def game_loop():
     sleep(5)
     while game[0]:
-        sleep(0.5)
+        sleep(1)
         previous_count[0] = count[0]
         stood[0] = False
         place_bet(round((count[0]/(cards_remaining[0]/52)) * 100))
@@ -64,8 +76,17 @@ def game_loop():
                 stood[0] = True
                 pyautogui.click(double_down)
             elif result == "Split":
+                # Implement split
+                dealer_shown_card = dealer_hand[0]
+                previous_count[0] = count[0]
+                stood[0] = False                
+
+                hands = []
+                # while True:
+
+ 
                 pyautogui.click(split)
-            sleep(2)
+            sleep(3)
         
 
 
@@ -92,7 +113,12 @@ def on_press(key):
         pass
 
 if __name__ == "__main__":
-    previous_count = [0]
+    with open('cardcounting/src/blackjack/prevcount.txt', 'r') as file:
+        lines = file.readlines()
+        if lines:
+            previous_count = [int(lines[-1])]
+        else:
+            previous_count = [0]
     count = [0]
     stood = [False]
     player_hand = []
@@ -105,7 +131,7 @@ if __name__ == "__main__":
     loss_count = [0]
     tie_count = [0]
 
-    # threading.Thread(target=game_loop).start()
+    threading.Thread(target=game_loop).start()
 
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
