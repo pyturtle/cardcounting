@@ -25,7 +25,16 @@ def place_bet(amount):
 
 def split_hand(hands):
     while True:
-        result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
+        result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+        #TODO when ever the decision is to split, the player should be able to split the hand again by calling itself
+        #TODO if the player stands the hand will be saved to the list of hands
+        #TODO if the player hits the hand will be saved if he busted, but you need to check if it is the same hand else then you too check above to see the value cause if it is 21 then it auto moves on 
+        #TODO if the player doubles down the hand will be saved once you check above 
+        #TODO if the player splits again the process will repeat
+
+        #TODO add special stuff for when you have a pair of ten or aces cause you might get a black jack messing up spacing
+
+        #TODO disable the checking for win loss and tie during spliting cause it will mess up the percentages
         if result == "Hit":
             pyautogui.click(hit)
         elif result == "Stand":
@@ -80,7 +89,6 @@ def game_loop():
                 dealer_shown_card = dealer_hand[0]
                 previous_count[0] = count[0]
                 stood[0] = False                
-
                 hands = []
                 # while True:
 
