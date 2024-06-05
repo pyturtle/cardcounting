@@ -8,6 +8,11 @@ from pynput import keyboard
 from time import sleep
 import threading
 import pyautogui
+import mss
+import pytesseract
+import numpy as np
+import re
+
 
 chat = (500, 840)
 hit = (520, 715)
@@ -23,8 +28,8 @@ def place_bet(amount):
     pyautogui.typewrite(f"/blackjack {amount}", interval=0.1)
     pyautogui.press('enter')
 
-def split_hand(hands):
-    while True:
+def split_hand(hands, split_count=2):
+    while len(hands) < split_count:
         result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
         #TODO when ever the decision is to split, the player should be able to split the hand again by calling itself
         #TODO if the player stands the hand will be saved to the list of hands
@@ -34,16 +39,52 @@ def split_hand(hands):
 
         #TODO add special stuff for when you have a pair of ten or aces cause you might get a black jack messing up spacing
 
-        #TODO disable the checking for win loss and tie during spliting cause it will mess up the percentages
+        #TODO disable the checking for win loss and tie during spiting cause it will mess up the percentages
+        if result not in ["Hit", "Double Down", "Split", "Stand"]:
+            hands.append(player_amount[0])
+            break
         if result == "Hit":
             pyautogui.click(hit)
+            sleep(2)
+            previous = player_amount[0]
+            result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+            if len(player_hand) == 2:
+                with mss.mss() as sct:
+                    screenshot = sct.grab({'top': 190, 'left': 490, 'width': 50, 'height': 25})
+                    img = np.array(screenshot)
+                    text = pytesseract.image_to_string(img, config='--psm 6')
+                
+                if "Blackjack" in text:
+                    count[0] -= 1
+                    hands.append("Blackjack")
+                    break
+                else:
+                    amount = list(map(int, re.findall(r'\d+', text)))[0]
+                
+                if amount < 6:
+                    count[0] += 1
+                elif amount > 9:
+                    count[0] -= 1
+                previous_count[0] = count[0]       
+                hands.append(amount)
+                break
+
         elif result == "Stand":
+            previous_count[0] = count[0]
+            hands.append(player_amount[0])
             pyautogui.click(stand)
+            break
         elif result == "Double Down":
+            previous_count[0] = count[0]       
+            hands.append(player_amount[0])
             pyautogui.click(double_down)
+            break
         elif result == "Split":
-            split_hand(hands)
+            previous_count[0] = count[0]
+            pyautogui.click(split)
+            split_hand(hands, split_count +  1)
         sleep(3)
+    split_hand(hands, split_count)
 
 def game_loop():
     sleep(5)
@@ -57,7 +98,7 @@ def game_loop():
             count[0] = previous_count[0]
             result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
             print(result)
-            if result not in ["Playing", "Hit", "Double Down", "Split", "Stand"]:
+            if result not in ["Hit", "Double Down", "Split", "Stand"]:
                 # Update win, loss, tie count
                 if result == "Win":
                     win_count[0] += 1
@@ -66,10 +107,6 @@ def game_loop():
                 elif result == "Tie":
                     tie_count[0] += 1
                 previous_count[0] = count[0]
-
-                # Clear hands
-                dealer_hand.clear()
-                player_hand.clear()
 
                 # Save previous count to a text file
                 with open('cardcounting/src/blackjack/prevcount.txt', 'a') as file:
@@ -86,19 +123,50 @@ def game_loop():
                 pyautogui.click(double_down)
             elif result == "Split":
                 # Implement split
-                dealer_shown_card = dealer_hand[0]
-                previous_count[0] = count[0]
-                stood[0] = False                
+                previous_count[0] = count[0]            
                 hands = []
-                # while True:
-
- 
                 pyautogui.click(split)
+                split_hand(hands)
+                print(hands)
+                evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
+                for hand in hands:
+                    if hand == "Blackjack" and dealer_amount != "Blackjack":
+                        print("Win")
+                        win_count[0] += 1
+                    elif hand != "Blackjack" and dealer_amount == "Blackjack":
+                        print("Loss")
+                        loss_count[0] += 1
+                    elif hand == "Blackjack" and dealer_amount == "Blackjack":
+                        print("Tie")
+                        tie_count[0] += 1
+                    elif hand > 21:
+                        print("Loss")
+                        loss_count[0] += 1
+                    elif dealer_amount > 21:
+                        print("Win")
+                        win_count[0] += 1
+                    elif hand > dealer_amount:
+                        print("Win")
+                        win_count[0] += 1
+                    elif hand < dealer_amount:
+                        print("Loss")
+                        loss_count[0] += 1
+                    elif hand == dealer_amount:
+                        print("Tie")
+                        tie_count[0] += 1
+                    
+                    
+                    
+                    
+
+                sleep(3)
+
+            # Clear hands
+            dealer_hand.clear()
+            player_hand.clear()
+
             sleep(3)
         
-
-
-
 
 def on_press(key):
     try:
@@ -120,6 +188,8 @@ def on_press(key):
     except AttributeError:
         pass
 
+
+
 if __name__ == "__main__":
     with open('cardcounting/src/blackjack/prevcount.txt', 'r') as file:
         lines = file.readlines()
@@ -139,7 +209,7 @@ if __name__ == "__main__":
     loss_count = [0]
     tie_count = [0]
 
-    threading.Thread(target=game_loop).start()
+    # threading.Thread(target=game_loop).start()
 
     listener = keyboard.Listener(on_press=on_press)
     listener.start()

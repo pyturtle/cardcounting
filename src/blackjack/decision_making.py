@@ -293,6 +293,19 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     cards.pop() # Remove the extra card that was added to fix recognition
     print(cards)
 
+
+    # change if in split have the funciton different 
+    if "Blackjack" in player_dealer_text:
+        if player_dealer_text.count("Blackjack") == 2:
+            player_amount[0], dealer_amount[0] = "Blackjack", "Blackjack"
+            return "Tie"
+        if "Blackjack" in player_dealer_text.split("V")[1]:
+            player_amount[0] = "Blackjack"
+            return "Win"
+        else:
+            dealer_amount[0] = "Blackjack"
+            return "Loss"
+
     player_amount[0], dealer_amount[0] =list(map(int, re.findall(r'\d+', player_dealer_text)))
     cards_remaining[0] = int(cards_remaining_text)
 
@@ -338,16 +351,6 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
         
         for card in dealer_hand:
             count[0] += card_count_values[card]
-
-
-    if "Blackjack" in player_dealer_text:
-        if player_dealer_text.count("Blackjack") == 2:
-            return "Tie"
-        if "Blackjack" in player_dealer_text.split("V")[1]:
-            return "Win"
-        else:
-            return "Loss"
-
 
 
     result = check_win_loss_tie(player_amount, dealer_amount, stood)
