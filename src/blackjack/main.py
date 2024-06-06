@@ -109,6 +109,8 @@ def split_hand(hands, split_count=2):
         elif result == "Split":
             previous_count[0] = count[0]
             pyautogui.click(split)
+            sleep(2)
+
             split_hand(hands, split_count +  1)
         sleep(3)
     split_hand(hands, split_count)
@@ -153,9 +155,10 @@ def game_loop():
                 previous_count[0] = count[0]            
                 hands = []
                 pyautogui.click(split)
+                sleep(2)
                 split_hand(hands)
                 print(hands)
-                evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
+                evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
                 for hand in hands:
                     if hand == "Blackjack" and dealer_amount != "Blackjack":
                         print("Win")
@@ -181,12 +184,7 @@ def game_loop():
                     elif hand == dealer_amount:
                         print("Tie")
                         tie_count[0] += 1
-                    
-                    
-                    
-                    
-
-                sleep(3)
+                break
 
             # Clear hands
             dealer_hand.clear()
@@ -224,7 +222,7 @@ if __name__ == "__main__":
             previous_count = [int(lines[-1])]
         else:
             previous_count = [0]
-    count = [0]
+    count = [previous_count[0]]
     stood = [False]
     player_hand = []
     dealer_hand = []
