@@ -24,6 +24,8 @@ split = (855, 715)
 def place_bet(amount):
     if amount < 100:
         amount = 100
+    elif amount > 1100:
+        amount = 1100
     print(f"Placing a bet of {amount}")
     pyautogui.click(chat)
     pyautogui.typewrite(f"/blackjack {amount}", interval=0.1)
@@ -86,8 +88,7 @@ def split_hand(hands, split_count=2):
             result = evaluate_game_state(reader ,dummy_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
             if len(player_hand) == 2:
                 with mss.mss() as sct:
-                    screenshot = sct.grab({'top': 190, 'left': 490, 'width': 50, 'height': 25})
-                    img = np.array(screenshot)
+                    screenshot = np.array(sct.grab({'top': 190, 'left': 490, 'width': 100, 'height': 25}))
                     text = pytesseract.image_to_string(img, config='--psm 6')
                     
                 if "Blackjack" in text:
@@ -111,7 +112,7 @@ def split_hand(hands, split_count=2):
             pyautogui.click(split)
             split_hand(hands, split_count +  1)
 
-            
+
     split_hand(hands, split_count)
 
 def game_loop():

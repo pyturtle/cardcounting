@@ -11,13 +11,13 @@ card_values = {
 
 def display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount , dealer_amount, win_count, loss_count, tie_count):
     while True:
-        overlay_img = np.zeros((1000, 400, 3), dtype=np.uint8)
+        overlay_img = np.zeros((1000, 500, 3), dtype=np.uint8)
 
         #Display the Count
         cv2.putText(overlay_img, f"Count: {count[0]}", (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
 
         #Display the True Count
-        cv2.putText(overlay_img, f"True Count: {count[0]/3:.2f}", (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(overlay_img, f"True Count: {count[0]/(cards_remaining[0]/52):.2f}", (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
 
         #Display the Cards Remaining
         cv2.putText(overlay_img, f"Cards Remaining: {cards_remaining[0]}", (30, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
@@ -41,7 +41,7 @@ def display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amo
         cv2.putText(overlay_img, f"Tie Percentage: {tie_percentage:.2f}%", (30, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
 
         cv2.imshow("Count Overlay", overlay_img)
-        cv2.moveWindow("Count Overlay", -200, 0)
+        cv2.moveWindow("Count Overlay", -400, 0)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
         time.sleep(0.1)

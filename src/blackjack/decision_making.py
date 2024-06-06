@@ -257,14 +257,14 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
     Returns:
         str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
     """
-    sleep(3)
+    sleep(2)
     with mss.mss() as sct:
         
         # Grab the cards region
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
         contour_count = [0]
-        final_img = extract_cards(preprocessed_img, -15, contour_count)
+        final_img = extract_cards(preprocessed_img, 0, contour_count)
         card_text = reader.readtext(final_img, detail=0, paragraph=True)[0]
 
         # Grab the player and dealer count regions
@@ -293,6 +293,11 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
             
     print(cards)
 
+    if split != True:
+        for card in cards:
+            count[0] += card_count_values[card]
+
+    # Check for Blackjack
     if "Blackjack" in player_dealer_text:
         if player_dealer_text.count("Blackjack") == 2:
             player_amount[0], dealer_amount[0] = "Blackjack", "Blackjack"
@@ -343,13 +348,6 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
         
         for card in dealer_hand[1:]:
             count[0] += card_count_values[card]
-    else:
-        for card in player_hand:
-            count[0] += card_count_values[card]
-        
-        for card in dealer_hand:
-            count[0] += card_count_values[card]
-
 
     result = check_win_loss_tie(player_amount, dealer_amount, stood)
 
