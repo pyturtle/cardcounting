@@ -6,6 +6,7 @@ from blackjack import display_overlay
 from blackjack import evaluate_game_state
 from pynput import keyboard
 from time import sleep
+import easyocr
 import threading
 import pyautogui
 import mss
@@ -31,7 +32,7 @@ def place_bet(amount):
 def split_hand(hands, split_count=2):
     while len(hands) < split_count:
         count[0] = previous_count[0]
-        result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+        result = evaluate_game_state(reader, count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
         #TODO when ever the decision is to split, the player should be able to split the hand again by calling itself
         #TODO if the player stands the hand will be saved to the list of hands
         #TODO if the player hits the hand will be saved if he busted, but you need to check if it is the same hand else then you too check above to see the value cause if it is 21 then it auto moves on 
@@ -47,14 +48,13 @@ def split_hand(hands, split_count=2):
             break
         if result == "Hit":
             pyautogui.click(hit)
-            sleep(2)
             previous = player_amount[0]
             dummy_count = [0]
-            result = evaluate_game_state(dummy_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+            result = evaluate_game_state(reader, dummy_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
             if len(player_hand) == 2:
                 previous_count[0] = count[0]
                 with mss.mss() as sct:
-                    screenshot = sct.grab({'top': 190, 'left': 490, 'width': 50, 'height': 25})
+                    screenshot = sct.grab({'top': 185, 'left': 490, 'width': 50, 'height': 25})
                     img = np.array(screenshot)
                     text = pytesseract.image_to_string(img, config='--psm 6')
                 
@@ -83,7 +83,7 @@ def split_hand(hands, split_count=2):
             pyautogui.click(double_down)
             previous = player_amount[0]
             dummy_count = [0]
-            result = evaluate_game_state(dummy_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+            result = evaluate_game_state(reader ,dummy_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
             if len(player_hand) == 2:
                 with mss.mss() as sct:
                     screenshot = sct.grab({'top': 190, 'left': 490, 'width': 50, 'height': 25})
@@ -109,23 +109,22 @@ def split_hand(hands, split_count=2):
         elif result == "Split":
             previous_count[0] = count[0]
             pyautogui.click(split)
-            sleep(2)
-
             split_hand(hands, split_count +  1)
-        sleep(3)
+
+            
     split_hand(hands, split_count)
 
 def game_loop():
     sleep(5)
     while game[0]:
-        sleep(1)
+        sleep(2)
         previous_count[0] = count[0]
         stood[0] = False
         place_bet(round((count[0]/(cards_remaining[0]/52)) * 100))
-        sleep(3)
+        sleep(2)
         while game[0]:
             count[0] = previous_count[0]
-            result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
+            result = evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
             print(result)
             if result not in ["Hit", "Double Down", "Split", "Stand"]:
                 # Update win, loss, tie count
@@ -155,10 +154,9 @@ def game_loop():
                 previous_count[0] = count[0]            
                 hands = []
                 pyautogui.click(split)
-                sleep(2)
                 split_hand(hands)
                 print(hands)
-                evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+                evaluate_game_state(reader, count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
                 for hand in hands:
                     if hand == "Blackjack" and dealer_amount != "Blackjack":
                         print("Win")
@@ -190,20 +188,20 @@ def game_loop():
             dealer_hand.clear()
             player_hand.clear()
 
-            sleep(3)
+            sleep(2)
         
 
 def on_press(key):
     try:
         if key.char == 'p':
             count[0] = previous_count[0]
-            result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
+            result = evaluate_game_state(reader, count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
             print(result)
             if result not in ["Playing", "Hit", "Double Down", "Split", "Stand"]:
                 previous_count[0] = count[0]
         if key.char == 's':
             stood[0] = True
-            result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
+            result = evaluate_game_state(reader, count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
             print(result)
             previous_count[0] = count[0]
             stood[0] = False
@@ -222,6 +220,7 @@ if __name__ == "__main__":
             previous_count = [int(lines[-1])]
         else:
             previous_count = [0]
+    reader = easyocr.Reader(['en'])
     count = [previous_count[0]]
     stood = [False]
     player_hand = []
@@ -240,8 +239,5 @@ if __name__ == "__main__":
     listener.start()
 
     display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count)
-    
-
-    # game_loop()
 
     listener.join()

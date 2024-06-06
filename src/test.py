@@ -4,6 +4,7 @@ import pytesseract
 import numpy as np
 import re
 from pynput import keyboard
+import easyocr
 
 def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -22,16 +23,6 @@ def extract_cards(preprocessed_img, spacing, contour_count):
 
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
 
-    
-    # cv2.imwrite("bounding_box_2.jpg", preprocessed_img[bounding_boxes[0][1]:bounding_boxes[0][1]+bounding_boxes[0][3], bounding_boxes[0][0]:bounding_boxes[0][0]+bounding_boxes[0][2]])
-
-    bounding_boxes.append(bounding_boxes[-1])
-    bounding_boxes.append(bounding_boxes[-1])
-    # bounding_boxes.insert(0,bounding_boxes[-1])
-    # bounding_boxes.insert(0,bounding_boxes[-1])
-
-
-
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
     original_width = preprocessed_img.shape[1]
@@ -42,6 +33,10 @@ def extract_cards(preprocessed_img, spacing, contour_count):
     new_x_positions = []
     current_x = 30
     for i, bbox in enumerate(bounding_boxes):
+        if i == 0:
+            new_x_positions.append(current_x)
+            current_x += bbox[2] + spacing + 10
+            continue
         new_x_positions.append(current_x)
         current_x += bbox[2] + spacing  # width of the bounding box + spacing
 
@@ -51,26 +46,9 @@ def extract_cards(preprocessed_img, spacing, contour_count):
 
     for i, (x, y, w, h) in enumerate(bounding_boxes):
         card_region = preprocessed_img[y:y+h, x:x+w]
-        if i == len(bounding_boxes) - 2:
-            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_1.jpg")
-            resized_saved_image = cv2.resize(saved_image, (w, h))
-            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        elif i == len(bounding_boxes) - 1:
-            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_0.jpg")
-            resized_saved_image = cv2.resize(saved_image, (w, h))
-            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        # elif i == 0:
-        #     saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_2.jpg")
-        #     resized_saved_image = cv2.resize(saved_image, (w, h))
-        #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        # elif i == 1:
-        #     saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_2.jpg")
-        #     resized_saved_image = cv2.resize(saved_image, (w, h))
-        #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        else:
-            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
+        white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
     
-    scale_factor = 2.0  # Adjust the scale factor as desired
+    scale_factor = 3.0  # Adjust the scale factor as desired
     scaled_image = cv2.resize(white_background, None, fx=scale_factor, fy=scale_factor)
     return scaled_image
 
@@ -93,7 +71,7 @@ def add_number(image, number):
     return image
 
 
-monitor = {'top': 535, 'left': 495, 'width': 900, 'height': 28}
+monitor = {'top': 530, 'left': 495, 'width': 900, 'height': 31}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 900, 'height': 30}
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 200, 'height': 35}
 
@@ -105,15 +83,15 @@ while True:
         img = np.array(screenshot)
         contour_count = [0]
         preprocessed_img = preprocess_image(img)
-        final_img = add_number(extract_cards(preprocessed_img, -15, contour_count), "")
-        config = '--psm 7 -c tessedit_char_whitelist=23456789AJQK'
-        text = pytesseract.image_to_string(final_img, config=config)
+        final_img = extract_cards(preprocessed_img, 0, contour_count)
+        reader = easyocr.Reader(['en'])
+        text = reader.readtext(final_img, detail=0, paragraph=True)[0]
         print(text)
-        cards = re.findall(r'10|[2-9AJQK]', text)
+        cards = re.findall(r'10|[0-9AJQK]', text)
+        cards = [card if card != '0' else 'Q' for card in cards]
         print(cards)
 
-        cards.pop()
-        cards.pop()
+
         # cards.pop(0)
         # cards.pop(0)
 

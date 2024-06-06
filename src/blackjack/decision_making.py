@@ -1,3 +1,4 @@
+from time import sleep
 import cv2
 import mss
 import pytesseract
@@ -17,7 +18,7 @@ card_values = {
 }
 
 
-cards_region = {'top': 535, 'left': 495, 'width': 900, 'height': 28}
+cards_region = {'top': 530, 'left': 495, 'width': 900, 'height': 31}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 900, 'height': 30}
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 200, 'height': 35}
 
@@ -48,6 +49,7 @@ def extract_cards(preprocessed_img, spacing, contour_count):
     Args:
         preprocessed_img (numpy.ndarray): The preprocessed image containing the cards.
         spacing (int): The spacing between the extracted cards.
+        contour_count (list): A mutable list to store the number of contours found.
 
     Returns:
         numpy.ndarray: The image with the extracted cards arranged horizontally.
@@ -61,12 +63,6 @@ def extract_cards(preprocessed_img, spacing, contour_count):
 
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
 
-    bounding_boxes.append(bounding_boxes[-1])
-    bounding_boxes.append(bounding_boxes[-1])
-    # bounding_boxes.insert(0,bounding_boxes[-1])
-    # bounding_boxes.insert(0,bounding_boxes[-1])
-
-
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
     original_width = preprocessed_img.shape[1]
@@ -77,6 +73,10 @@ def extract_cards(preprocessed_img, spacing, contour_count):
     new_x_positions = []
     current_x = 30
     for i, bbox in enumerate(bounding_boxes):
+        if i == 0:
+            new_x_positions.append(current_x)
+            current_x += bbox[2] + spacing + 15
+            continue
         new_x_positions.append(current_x)
         current_x += bbox[2] + spacing  # width of the bounding box + spacing
 
@@ -86,44 +86,12 @@ def extract_cards(preprocessed_img, spacing, contour_count):
 
     for i, (x, y, w, h) in enumerate(bounding_boxes):
         card_region = preprocessed_img[y:y+h, x:x+w]
-        if i == len(bounding_boxes) - 2:
-            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_1.jpg")
-            resized_saved_image = cv2.resize(saved_image, (w, h))
-            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        elif i == len(bounding_boxes) - 1:
-            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_0.jpg")
-            resized_saved_image = cv2.resize(saved_image, (w, h))
-            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        # elif i == 0:
-        #     saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_2.jpg")
-        #     resized_saved_image = cv2.resize(saved_image, (w, h))
-        #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        # elif i == 1:
-        #     saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_2.jpg")
-        #     resized_saved_image = cv2.resize(saved_image, (w, h))
-        #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
-        else:
-            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
+        white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
     
+    scale_factor = 3.0  # Adjust the scale factor as desired
+    scaled_image = cv2.resize(white_background, None, fx=scale_factor, fy=scale_factor)
+    return scaled_image
 
-    return white_background
-
-def add_number(image, number):
-    h, w = image.shape[:2]
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    scale = 1.8
-    color = (0, 0, 0)
-    thickness = 3
-    
-    text_size, _ = cv2.getTextSize(str(number), font, scale, thickness)
-    text_w, text_h = text_size
-    
-    x = w - text_w - 20
-    y = h // 2 + text_h // 2
-
-    cv2.putText(image, str(number), (x, y), font, scale, color, thickness)
-    
-    return image
 
 def check_win_loss_tie(player_amount, dealer_amount, stood):
     if player_amount[0] > 21:
@@ -273,7 +241,7 @@ def make_decision(true_count, player_amount, dealer_amount, player_hand, dealer_
         
 
 
-def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split = False):
+def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split = False):
     """
     Makes a decision based on the current state of the game.
 
@@ -289,15 +257,15 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     Returns:
         str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
     """
+    sleep(3)
     with mss.mss() as sct:
         
         # Grab the cards region
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
         contour_count = [0]
-        final_img = (add_number(extract_cards(preprocessed_img, -15, contour_count), ""))
-        config = '--psm 7 -c tessedit_char_whitelist=0123456789AJQK'
-        card_text = pytesseract.image_to_string(final_img, config=config)
+        final_img = extract_cards(preprocessed_img, -15, contour_count)
+        card_text = reader.readtext(final_img, detail=0, paragraph=True)[0]
 
         # Grab the player and dealer count regions
         player_dealer_img = np.array(sct.grab(player_dealer_count_region))
@@ -309,10 +277,11 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
 
 
     # Calculate the running count
-    cards = re.findall(r'10|[2-9AJQK]', card_text)
+    cards = re.findall(r'10|[0-9AJQK]', card_text)
+    cards = [card if card != '0' else 'Q' for card in cards]
     # If there is a Letter at the end it recognizes it at zero so I add two random cards to fix it don't ask
-    cards.pop() # Remove the extra card that was added to fix recognition
-    cards.pop() # Remove the extra card that was added to fix recognition 
+    # cards.pop() # Remove the extra card that was added to fix recognition
+    # cards.pop() # Remove the extra card that was added to fix recognition 
     # cards.pop(0) # Remove the extra card that was added to fix recognition
     # cards.pop(0) # Remove the extra card that was added to fix recognition
 
