@@ -60,7 +60,6 @@ def extract_cards(preprocessed_img, spacing):
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
     
     bounding_boxes.append(bounding_boxes[-1])
-    bounding_boxes.append(bounding_boxes[0])
     bounding_boxes.append(bounding_boxes[1])
 
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
@@ -81,8 +80,17 @@ def extract_cards(preprocessed_img, spacing):
     
     for i, (x, y, w, h) in enumerate(bounding_boxes):
         card_region = preprocessed_img[y:y+h, x:x+w]
-        white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
-    
+        if i == len(bounding_boxes) - 2:
+            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_1.jpg")
+            resized_saved_image = cv2.resize(saved_image, (w, h))
+            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
+        elif i == len(bounding_boxes) - 1:
+            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_0.jpg")
+            resized_saved_image = cv2.resize(saved_image, (w, h))
+            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
+        else:
+            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
+
     return white_background
 
 def add_number(image, number):
@@ -272,7 +280,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
         # Grab the cards region
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
-        final_img = (add_number(extract_cards(preprocessed_img, 20), "000"))
+        final_img = (add_number(extract_cards(preprocessed_img, 15), "000"))
         config = '--psm 7 -c tessedit_char_whitelist=0123456789AJQK'
         card_text = pytesseract.image_to_string(final_img, config=config)
 
@@ -289,12 +297,9 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     cards = re.findall(r'10|[2-9AJQK]', card_text)
     # If there is a Letter at the end it recognizes it at zero so I add two random cards to fix it don't ask
     cards.pop() # Remove the extra card that was added to fix recognition
-    cards.pop() # Remove the extra card that was added to fix recognition
-    cards.pop() # Remove the extra card that was added to fix recognition
+    cards.pop() # Remove the extra card that was added to fix recognition 
     print(cards)
 
-
-    # change if in split have the funciton different 
     if "Blackjack" in player_dealer_text:
         if player_dealer_text.count("Blackjack") == 2:
             player_amount[0], dealer_amount[0] = "Blackjack", "Blackjack"

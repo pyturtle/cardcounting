@@ -19,11 +19,10 @@ def extract_cards(preprocessed_img, spacing):
     bounding_boxes = [cv2.boundingRect(cnt) for cnt in contours]
 
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
-    
-    bounding_boxes.append(bounding_boxes[-1])
-    bounding_boxes.append(bounding_boxes[0])
-    bounding_boxes.append(bounding_boxes[1])
 
+    # cv2.imwrite("bounding_box_0.jpg", preprocessed_img[bounding_boxes[0][1]:bounding_boxes[0][1]+bounding_boxes[0][3], bounding_boxes[0][0]:bounding_boxes[0][0]+bounding_boxes[0][2]])
+    bounding_boxes.append(bounding_boxes[-1])
+    bounding_boxes.append(bounding_boxes[-1])
 
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
@@ -40,11 +39,20 @@ def extract_cards(preprocessed_img, spacing):
 
 
     white_background = np.ones((preprocessed_img.shape[0], original_width, 3), dtype=np.uint8) * 255
-    
+
+
     for i, (x, y, w, h) in enumerate(bounding_boxes):
         card_region = preprocessed_img[y:y+h, x:x+w]
-        white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
-    
+        if i == len(bounding_boxes) - 2:
+            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_1.jpg")
+            resized_saved_image = cv2.resize(saved_image, (w, h))
+            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
+        elif i == len(bounding_boxes) - 1:
+            saved_image = cv2.imread("cardcounting/src/blackjack/files/bounding_box_0.jpg")
+            resized_saved_image = cv2.resize(saved_image, (w, h))
+            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = resized_saved_image
+        else:
+            white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
     return white_background
 
 def add_number(image, number):
@@ -77,12 +85,13 @@ while True:
         screenshot = sct.grab(monitor)
         img = np.array(screenshot)
         preprocessed_img = preprocess_image(img)
-        final_img = (add_number(extract_cards(preprocessed_img, 20), "000"))
+        final_img = (add_number(extract_cards(preprocessed_img, 15), "000"))
         config = '--psm 7 -c tessedit_char_whitelist=0123456789AJQK'
         text = pytesseract.image_to_string(final_img, config=config)
         print(text)
         cards = re.findall(r'10|[2-9AJQK]', text)
-        cards.pop()
+        print(cards)
+
         cards.pop()
         cards.pop()
         print(cards)
