@@ -38,7 +38,7 @@ def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
-    black_bar = np.zeros((30, inverted.shape[1]), dtype=np.uint8)
+    black_bar = np.zeros((80, inverted.shape[1]), dtype=np.uint8)
     inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
@@ -75,7 +75,7 @@ def extract_cards(preprocessed_img, spacing, contour_count):
     for i, bbox in enumerate(bounding_boxes):
         if i == 0:
             new_x_positions.append(current_x)
-            current_x += bbox[2] + spacing + 15
+            current_x += bbox[2] + spacing + 10
             continue
         new_x_positions.append(current_x)
         current_x += bbox[2] + spacing  # width of the bounding box + spacing
@@ -116,7 +116,7 @@ def check_win_loss_tie(player_amount, dealer_amount, stood):
         return "Playing"
 
 
-def make_decision(true_count, player_amount, dealer_amount, player_hand, dealer_hand, ace_count):
+def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count):
     """
     Makes a decision based on the current state of the game.
 
@@ -156,29 +156,37 @@ def make_decision(true_count, player_amount, dealer_amount, player_hand, dealer_
 
     # Check for doubles and standing  With ace
     if ace_count > 0:
-        if player_total in [13, 14] and dealer_showing in [5, 6]:
+        if player_total in [13, 14] and dealer_showing in [5, 6] and len(player_hand) == 2:
             return "Double Down"
-        elif player_total in [15, 16] and dealer_showing in [4, 5, 6]:
+        elif player_total in [15, 16] and dealer_showing in [4, 5, 6] and len(player_hand) == 2:
             return "Double Down"
         elif player_total in [17]:
-            if dealer_showing in [3, 4, 5, 6]:
+            if dealer_showing in [3, 4, 5, 6] and len(player_hand) == 2:
                 return "Double Down"
-            elif dealer_showing in [2] and true_count >= 1:
+            elif dealer_showing in [2] and true_count >= 1 and len(player_hand) == 2:
                 return "Double Down"
+            else:
+                return "Hit"
         elif player_total in [18]:
-            if dealer_showing in  [3, 4, 5, 6]:
+            if dealer_showing in  [3, 4, 5, 6] and len(player_hand) == 2:
                 return "Double Down"
-            elif dealer_showing in [2] and true_count >= 1:
+            elif dealer_showing in [2] and true_count >= 0 and len(player_hand) == 2:
                 return "Double Down"
+            elif dealer_showing in [7, 8]:
+                return "Stand"
+            else:
+                return "Hit"
         elif player_total in [19]:
-            if dealer_showing in [5, 6] and true_count >= 1:
+            if dealer_showing in [5, 6] and true_count >= 1 and len(player_hand) == 2:
                 return "Double Down"
-            elif dealer_showing in [4] and true_count >= 4:
+            elif dealer_showing in [4] and true_count >= 4 and len(player_hand) == 2:
                 return "Double Down"
+        else:
+            return "Hit"
 
     # Check for doubling down
     if len(player_hand) == 2:
-        if player_total in [8] and true_count >= 2:
+        if player_total in [8] and dealer_showing == 6 and true_count >= 2:
             return "Double Down"
         if player_total in [9]:
             if dealer_showing in [3, 4, 5, 6]:
@@ -229,6 +237,8 @@ def make_decision(true_count, player_amount, dealer_amount, player_hand, dealer_
                 return "Stand"
             elif dealer_showing == 10 and true_count > 0:
                 return "Stand"
+            elif dealer_showing in [2, 3, 4, 5, 6]:
+                return "Stand"
             else:
                 return "Hit"
         elif player_total == 15 and dealer_showing == 10 and true_count >= 4:
@@ -257,7 +267,7 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
     Returns:
         str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
     """
-    sleep(2)
+    sleep(3)
     with mss.mss() as sct:
         
         # Grab the cards region
@@ -265,7 +275,8 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
         preprocessed_img = preprocess_image(cards_img)
         contour_count = [0]
         final_img = extract_cards(preprocessed_img, 0, contour_count)
-        card_text = reader.readtext(final_img, detail=0, paragraph=True)[0]
+        card_text = reader.readtext(final_img, width_ths=2, text_threshold=0.3, low_text=.2, allowlist='0123456789AJQK', detail=0, paragraph=True, batch_size=8)[0]
+        print(card_text)
 
         # Grab the player and dealer count regions
         player_dealer_img = np.array(sct.grab(player_dealer_count_region))
@@ -278,18 +289,6 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
 
     # Calculate the running count
     cards = re.findall(r'10|[0-9AJQK]', card_text)
-    cards = [card if card != '0' else 'Q' for card in cards]
-    # If there is a Letter at the end it recognizes it at zero so I add two random cards to fix it don't ask
-    # cards.pop() # Remove the extra card that was added to fix recognition
-    # cards.pop() # Remove the extra card that was added to fix recognition 
-    # cards.pop(0) # Remove the extra card that was added to fix recognition
-    # cards.pop(0) # Remove the extra card that was added to fix recognition
-
-    if len(cards) > contour_count[0] and "J" in cards:
-            jack_index = cards.index("J")
-            if jack_index < len(cards) - 1 and cards[jack_index + 1] == "5":
-                cards.pop(jack_index + 1)
-
             
     print(cards)
 
@@ -320,7 +319,7 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
     for card in cards:
         if running_count < player_amount[0]:
             if card == 'A':
-                if running_count + card_values[card] <= player_amount[0]:
+                if running_count + card_values[card] <= player_amount[0] and "Soft" in player_dealer_text.split("V")[1]:
                     ace_count += 1
                     running_count += card_values[card]
                     player_hand.append(card)
@@ -354,6 +353,6 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
     if result != "Playing":
         return result
     else:
-        decision = make_decision(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52), player_amount, dealer_amount, player_hand, dealer_hand, ace_count)
+        decision = make_decision(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52), player_amount, player_hand, dealer_hand, ace_count)
         return decision
         

@@ -10,7 +10,7 @@ def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
-    black_bar = np.zeros((50, inverted.shape[1]), dtype=np.uint8)
+    black_bar = np.zeros((80, inverted.shape[1]), dtype=np.uint8)
     inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
@@ -23,6 +23,8 @@ def extract_cards(preprocessed_img, spacing, contour_count):
 
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
 
+    # cv2.imwrite("bounding_box_0.jpg", preprocessed_img[bounding_boxes[2][1]:bounding_boxes[2][1]+bounding_boxes[2][3], bounding_boxes[2][0]:bounding_boxes[2][0]+bounding_boxes[2][2]])
+
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
     original_width = preprocessed_img.shape[1]
@@ -33,10 +35,6 @@ def extract_cards(preprocessed_img, spacing, contour_count):
     new_x_positions = []
     current_x = 30
     for i, bbox in enumerate(bounding_boxes):
-        if i == 0:
-            new_x_positions.append(current_x)
-            current_x += bbox[2] + spacing + 10
-            continue
         new_x_positions.append(current_x)
         current_x += bbox[2] + spacing  # width of the bounding box + spacing
 
@@ -45,6 +43,11 @@ def extract_cards(preprocessed_img, spacing, contour_count):
 
 
     for i, (x, y, w, h) in enumerate(bounding_boxes):
+        # if i == 0  or i == len(bounding_boxes) - 1:
+        #     card_region = cv2.imread("cardcounting/src/blackjack/files/bounding_box_0.jpg")
+        #     card_region = cv2.resize(card_region, (w, h))
+        #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_BGR2RGB)
+        #     continue
         card_region = preprocessed_img[y:y+h, x:x+w]
         white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
     
@@ -85,23 +88,17 @@ while True:
         preprocessed_img = preprocess_image(img)
         final_img = extract_cards(preprocessed_img, 0, contour_count)
         reader = easyocr.Reader(['en'])
-        text = reader.readtext(final_img, detail=0, paragraph=True)[0]
+        text = reader.readtext(final_img, width_ths=2, text_threshold=0.3, low_text=.2, allowlist='0123456789AJQK', detail=0, paragraph=True)
         print(text)
-        cards = re.findall(r'10|[0-9AJQK]', text)
-        cards = [card if card != '0' else 'Q' for card in cards]
-        print(cards)
+        # cards = re.findall(r'10|[0-9AJQK]', text)
+        # cards = [card if card != '0' else 'Q' for card in cards]
+        # print(cards)  
 
 
         # cards.pop(0)
         # cards.pop(0)
 
-        if len(cards) > contour_count[0] and "J" in cards:
-                jack_index = cards.index("J")
-                if jack_index < len(cards) - 1 and cards[jack_index + 1] == "5":
-                    cards.pop(jack_index + 1)
-
-
-        print(cards)
+        # print(cards)
         cv2.imshow("Original Screenshot", img)
         cv2.imshow("Preprocessed Screenshot", preprocessed_img)
         cv2.imshow("Final Image", final_img)
@@ -109,16 +106,16 @@ while True:
 
         count_img = np.array(sct.grab(player_dealer_count_region))
         count_text = pytesseract.image_to_string(count_img, config='--psm 6')
-        # numbers = list(map(int, re.findall(r'\d+', count_text)))
-        # print(numbers)
+        numbers = list(map(int, re.findall(r'\d+', count_text)))
+        print(numbers)
         print (count_text.split("V"))
 
 
         cards_remaining_img = np.array(sct.grab(cards_remaining_region))
         cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
     
-        # player_amount, dealer_amount =list(map(int, re.findall(r'\d+', count_text)))
-        # print(player_amount, dealer_amount)
+        player_amount, dealer_amount =list(map(int, re.findall(r'\d+', count_text)))
+        print(player_amount, dealer_amount)
 
         print(cards_remaining_text)
         cv2.imshow("Cards Remaining", cards_remaining_img)
