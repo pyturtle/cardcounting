@@ -21,28 +21,38 @@ stand = (615, 715)
 double_down = (750, 715)
 split = (855, 715)
 
-def place_bet(amount):
-    # pyautogui.click(chat)
-    # pyautogui.typewrite(f"/deposit all")
-    # pyautogui.press('enter')
-    # sleep(1)
+def withdraw(amount):
+    pyautogui.click(chat)
+    pyautogui.typewrite(f"/withdraw {amount}")
+    pyautogui.press('enter')
 
+def deposit(amount):
+    pyautogui.click(chat)
+    pyautogui.typewrite(f"/deposit {amount}")
+    pyautogui.press('enter')
+
+def place_bet(amount):
     if amount < 100:
         amount = 100
-    elif amount > 800:
-        amount = 1100
+    elif amount > 1000:
+        amount = 1000
     bet_amount[0] = amount
 
-    # pyautogui.click(chat)
-    # pyautogui.typewrite(f"/withdraw {300}")
-    # pyautogui.press('enter')
-    # sleep(1)
+    if amount_deposited[0] + profit_loss[0] > amount * 4:
+        deposit(amount * 4)
+        amount_deposited[0] -= amount * 4
+        sleep(3)
 
-    print(f"Placing a bet of {amount}")
+
+    if amount_deposited[0] + profit_loss[0] < amount * 4:
+        withdraw(amount * 4)
+        sleep(3)
+
     pyautogui.click(chat)
     pyautogui.typewrite(f"/blackjack {amount}")
     pyautogui.press('enter')
-
+    
+    sleep(1)
 def split_hand(hands, split_count=2):
     while len(hands) < split_count:
         count[0] = previous_count[0]
@@ -137,6 +147,7 @@ def game_loop():
         previous_count[0] = count[0]
         stood[0] = False
         place_bet(round((count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52)) * 75))
+        sleep(3)
         while game[0]:
             count[0] = previous_count[0]
             result = evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
@@ -227,10 +238,6 @@ def game_loop():
                 del bet_amount[1:]
                 break
 
-            # Clear hands
-            dealer_hand.clear()
-            player_hand.clear()
-
             sleep(2)
         
 
@@ -248,7 +255,7 @@ def on_press(key):
             print(result)
             previous_count[0] = count[0]
             stood[0] = False
-        if key.char == 'h':
+        if key.char == 'm':
             game[0] = not game[0]
 
     except AttributeError:
@@ -264,7 +271,8 @@ if __name__ == "__main__":
     reader = easyocr.Reader(['en'])
     profit_loss = [0]
     bet_amount = [0]
-    previous_count = [0]
+    amount_deposited = [0]
+    previous_count = [2]
     count = [previous_count[0]]
     stood = [False]
     player_hand = []
@@ -282,6 +290,6 @@ if __name__ == "__main__":
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
-    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count, bet_amount, profit_loss)
+    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count, bet_amount, profit_loss, amount_deposited)
 
     listener.join()

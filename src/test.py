@@ -10,7 +10,7 @@ def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
-    black_bar = np.zeros((100, inverted.shape[1]), dtype=np.uint8)
+    black_bar = np.zeros((30, inverted.shape[1]), dtype=np.uint8)
     inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
@@ -22,6 +22,8 @@ def extract_cards(preprocessed_img, spacing):
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
 
     # cv2.imwrite("bounding_box_0.jpg", preprocessed_img[bounding_boxes[2][1]:bounding_boxes[2][1]+bounding_boxes[2][3], bounding_boxes[2][0]:bounding_boxes[2][0]+bounding_boxes[2][2]])
+
+    # bounding_boxes.insert(0, bounding_boxes[0]) 
 
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
@@ -41,8 +43,8 @@ def extract_cards(preprocessed_img, spacing):
 
 
     for i, (x, y, w, h) in enumerate(bounding_boxes):
-        # if i == 0  or i == len(bounding_boxes) - 1:
-        #     card_region = cv2.imread("cardcounting/src/blackjack/files/bounding_box_0.jpg")
+        # if i == 0:
+        #     card_region = cv2.imread("cardcounting/src/blackjack/files/bounding_box_1.jpg")
         #     card_region = cv2.resize(card_region, (w, h))
         #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_BGR2RGB)
         #     continue
@@ -72,7 +74,7 @@ def add_number(image, number):
     return image
 
 
-monitor = {'top': 530, 'left': 495, 'width': 900, 'height': 31}
+monitor = {'top': 531, 'left': 495, 'width': 900, 'height': 32}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 900, 'height': 30}
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 200, 'height': 35}
 
@@ -83,19 +85,18 @@ while True:
         screenshot = sct.grab(monitor)
         img = np.array(screenshot)
         preprocessed_img = preprocess_image(img)
-        final_img = extract_cards(preprocessed_img, 20)
+        final_img = extract_cards(preprocessed_img, 10)
         reader = easyocr.Reader(['en'])
-        text, conf = reader.readtext(final_img, width_ths=2, link_threshold= 0.9, text_threshold=0.7, low_text=.01, allowlist='0123456789AJQK')[0][1:]
+        text, conf = reader.readtext(final_img, width_ths=2, link_threshold = 0.9, text_threshold=0.7, low_text = .02, allowlist='0123456789AJQK')[0][1:]
         print(text, conf)
-        # cards = re.findall(r'10|[0-9AJQK]', text)
+        cards = re.findall(r'10|[2-9AJQK]', text)
         # cards = [card if card != '0' else 'Q' for card in cards]
         # print(cards)  
 
 
         # cards.pop(0)
-        # cards.pop(0)
 
-        # print(cards)
+        print(cards)
         cv2.imshow("Original Screenshot", img)
         cv2.imshow("Preprocessed Screenshot", preprocessed_img)
         cv2.imshow("Final Image", final_img)

@@ -18,7 +18,7 @@ card_values = {
 }
 
 
-cards_region = {'top': 530, 'left': 495, 'width': 900, 'height': 31}
+cards_region = {'top': 531, 'left': 495, 'width': 900, 'height': 32}
 player_dealer_count_region = {'top': 615, 'left': 490, 'width': 900, 'height': 30}
 cards_remaining_region = {'top': 640, 'left': 490, 'width': 200, 'height': 35}
 
@@ -38,7 +38,7 @@ def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
-    black_bar = np.zeros((100, inverted.shape[1]), dtype=np.uint8)
+    black_bar = np.zeros((30, inverted.shape[1]), dtype=np.uint8)
     inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
@@ -61,6 +61,8 @@ def extract_cards(preprocessed_img, spacing):
 
     bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
 
+    # bounding_boxes.insert(0, bounding_boxes[0])
+
     total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
     
     original_width = preprocessed_img.shape[1]
@@ -79,6 +81,11 @@ def extract_cards(preprocessed_img, spacing):
 
 
     for i, (x, y, w, h) in enumerate(bounding_boxes):
+        # if i == 0:
+        #     card_region = cv2.imread("cardcounting/src/blackjack/files/bounding_box_1.jpg")
+        #     card_region = cv2.resize(card_region, (w, h))
+        #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_BGR2RGB)
+        #     continue
         card_region = preprocessed_img[y:y+h, x:x+w]
         white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
     
@@ -267,9 +274,11 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
         # Grab the cards region
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
-        final_img = extract_cards(preprocessed_img, 20)
-        card_text, confidence = reader.readtext(final_img, width_ths=2, text_threshold=0.7, low_text=.05, link_threshold = 0.9, allowlist='0123456789AJQK', batch_size=8)[0][1:]
+        final_img = extract_cards(preprocessed_img, 10)
+        card_text, confidence = reader.readtext(final_img, width_ths=2, text_threshold=0.7, low_text=0.02, link_threshold = 0.9, allowlist='0123456789AJQK', batch_size=8)[0][1:]
         print(card_text, confidence)
+        if confidence < 0.5:
+            print("Error: Could not read cards")
 
         # Grab the player and dealer count regions
         player_dealer_img = np.array(sct.grab(player_dealer_count_region))
@@ -282,7 +291,7 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
 
     # Calculate the running count
     cards = re.findall(r'10|[2-9AJQK]', card_text)
-            
+    # cards.pop(0)
     print(cards)
 
     if split != True:
