@@ -234,7 +234,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     Returns:
         str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
     """
-    sleep(3)
+    sleep(2)
     with mss.mss() as sct:
         
         # Grab the cards region
@@ -253,8 +253,9 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
 
     # Extract the card numbers from the card images
     cards = []
-    for i, card in enumerate(reversed(card_images)):
+    for card in reversed(card_images):
         card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
+        print(card_number)
         card_number = re.findall(r'10|[2-9AJQK]', card_number)[0]
         cards.append(card_number)
 

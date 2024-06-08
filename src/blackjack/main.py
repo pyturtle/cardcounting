@@ -37,14 +37,16 @@ def place_bet(amount):
         amount = 1000
     bet_amount[0] = amount
 
-    if amount_deposited[0] + profit_loss[0] > amount * 4:
-        deposit(amount * 4)
-        amount_deposited[0] -= amount * 4
+    if amount_withdrawn[0] + profit_loss[0] > amount * 4:
+        deposit_amount = amount_withdrawn[0] + profit_loss[0] - amount * 4
+        deposit(deposit_amount)
+        amount_withdrawn[0] -= deposit_amount
         sleep(3)
 
 
-    if amount_deposited[0] + profit_loss[0] < amount * 4:
+    if amount_withdrawn[0] + profit_loss[0] < amount * 4:
         withdraw(amount * 4)
+        amount_withdrawn[0] += amount * 4
         sleep(3)
 
     pyautogui.click(chat)
@@ -241,18 +243,12 @@ def game_loop():
 
 def on_press(key):
     try:
-        if key.char == 'p':
+        if key.char == 'n':
             count[0] = previous_count[0]
             result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
             print(result)
             if result not in ["Playing", "Hit", "Double Down", "Split", "Stand"]:
                 previous_count[0] = count[0]
-        if key.char == 's':
-            stood[0] = True
-            result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
-            print(result)
-            previous_count[0] = count[0]
-            stood[0] = False
         if key.char == 'm':
             game[0] = not game[0]
 
@@ -268,8 +264,8 @@ if __name__ == "__main__":
 
     profit_loss = [0]
     bet_amount = [0]
-    amount_deposited = [0]
-    previous_count = [2]
+    amount_withdrawn = [0]
+    previous_count = [0]
     count = [previous_count[0]]
     stood = [False]
     player_hand = []
@@ -282,11 +278,11 @@ if __name__ == "__main__":
     loss_count = [0]
     tie_count = [0]
 
-    # threading.Thread(target=game_loop).start()
+    threading.Thread(target=game_loop).start()
 
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
-    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count, bet_amount, profit_loss, amount_deposited)
+    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count, bet_amount, profit_loss, amount_withdrawn)
 
     listener.join()
