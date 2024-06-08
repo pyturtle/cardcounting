@@ -10,12 +10,12 @@ module.exports = class EnlargeEmojis {
     start() {
         BdApi.injectCSS("EnlargeEmojisCSS", `
             .emoji {
-                width: 20px !important; 
-                height: 100px !important; 
+                width: 40px !important; /* Increase the width of the emoji */
+                height: 50px !important; /* Increase the height of the emoji */
                 display: inline-block;
                 vertical-align: middle;
-                padding-left: 10px;
-                padding-right: 10px; 
+                padding-left: 0px; /* Add left padding */
+                padding-right: 0px; /* Add right padding */
             }
         `);
     }

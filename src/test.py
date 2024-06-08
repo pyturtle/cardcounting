@@ -10,14 +10,12 @@ def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     inverted = cv2.bitwise_not(thresh)
-    black_bar = np.zeros((80, inverted.shape[1]), dtype=np.uint8)
+    black_bar = np.zeros((100, inverted.shape[1]), dtype=np.uint8)
     inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
-def extract_cards(preprocessed_img, spacing, contour_count):
+def extract_cards(preprocessed_img, spacing):
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    contour_count[0] = len(contours)
 
     bounding_boxes = [cv2.boundingRect(cnt) for cnt in contours]
 
@@ -84,12 +82,11 @@ while True:
     with mss.mss() as sct:
         screenshot = sct.grab(monitor)
         img = np.array(screenshot)
-        contour_count = [0]
         preprocessed_img = preprocess_image(img)
-        final_img = extract_cards(preprocessed_img, 0, contour_count)
+        final_img = extract_cards(preprocessed_img, 20)
         reader = easyocr.Reader(['en'])
-        text = reader.readtext(final_img, width_ths=2, text_threshold=0.3, low_text=.2, allowlist='0123456789AJQK', detail=0, paragraph=True)
-        print(text)
+        text, conf = reader.readtext(final_img, width_ths=2, link_threshold= 0.9, text_threshold=0.7, low_text=.01, allowlist='0123456789AJQK')[0][1:]
+        print(text, conf)
         # cards = re.findall(r'10|[0-9AJQK]', text)
         # cards = [card if card != '0' else 'Q' for card in cards]
         # print(cards)  

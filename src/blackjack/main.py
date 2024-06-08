@@ -22,10 +22,22 @@ double_down = (750, 715)
 split = (855, 715)
 
 def place_bet(amount):
+    # pyautogui.click(chat)
+    # pyautogui.typewrite(f"/deposit all")
+    # pyautogui.press('enter')
+    # sleep(1)
+
     if amount < 100:
         amount = 100
-    elif amount > 1100:
+    elif amount > 800:
         amount = 1100
+    bet_amount[0] = amount
+
+    # pyautogui.click(chat)
+    # pyautogui.typewrite(f"/withdraw {300}")
+    # pyautogui.press('enter')
+    # sleep(1)
+
     print(f"Placing a bet of {amount}")
     pyautogui.click(chat)
     pyautogui.typewrite(f"/blackjack {amount}")
@@ -35,15 +47,6 @@ def split_hand(hands, split_count=2):
     while len(hands) < split_count:
         count[0] = previous_count[0]
         result = evaluate_game_state(reader, count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
-        #TODO when ever the decision is to split, the player should be able to split the hand again by calling itself
-        #TODO if the player stands the hand will be saved to the list of hands
-        #TODO if the player hits the hand will be saved if he busted, but you need to check if it is the same hand else then you too check above to see the value cause if it is 21 then it auto moves on 
-        #TODO if the player doubles down the hand will be saved once you check above 
-        #TODO if the player splits again the process will repeat
-
-        #TODO add special stuff for when you have a pair of ten or aces cause you might get a black jack messing up spacing
-
-        #TODO disable the checking for win loss and tie during spiting cause it will mess up the percentages
         if result not in ["Hit", "Double Down", "Split", "Stand"]:
             previous_count[0] = count[0]
             hands.append(player_amount[0])
@@ -77,6 +80,7 @@ def split_hand(hands, split_count=2):
             continue
         elif result == "Double Down":
             previous_count[0] = count[0]   
+            bet_amount[len(hands)] *= 2
             pyautogui.click(double_down)
             previous = player_amount[0]
             dummy_count = [0]
@@ -100,20 +104,39 @@ def split_hand(hands, split_count=2):
                 hands.append(player_amount[0])
                 continue
         elif result == "Split":
+            bet_amount.append(bet_amount[len(hands)])
             previous_count[0] = count[0]
             pyautogui.click(split)
+
+            # Check if the player has blackjack right after splitting the hand
+            with mss.mss() as sct:
+                screenshot = sct.grab({'top': 510, 'left': 490, 'width': 70, 'height': 20})
+                img = np.array(screenshot)
+                text = pytesseract.image_to_string(img, config='--psm 6')
+                if str(len(hands) + 2) in text:
+                    hands.append("Blackjack")
+                    previous_count[0] += 1
+
             split_count += 1
 
     return hands   
 
 def game_loop():
-    sleep(4)
+    """
+    Function to run the game loop.
+
+    This function controls the flow of the game, including placing bets, evaluating game states,
+    and updating win/loss/tie counts. It also handles actions like hitting, standing, doubling down,
+    and splitting hands.
+
+    Returns:
+        None
+    """
+    sleep(2)
     while game[0]:
-        sleep(2)
         previous_count[0] = count[0]
         stood[0] = False
         place_bet(round((count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52)) * 75))
-        sleep(2)
         while game[0]:
             count[0] = previous_count[0]
             result = evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
@@ -122,10 +145,17 @@ def game_loop():
                 # Update win, loss, tie count
                 if result == "Win":
                     win_count[0] += 1
+                    profit_loss[0] += bet_amount[0]
+                    if player_amount[0] == "Blackjack":
+                        profit_loss[0] += bet_amount[0] / 2
+                    bet_amount[0] = 0
                 elif result == "Loss":
                     loss_count[0] += 1
+                    profit_loss[0] -= bet_amount[0]
+                    bet_amount[0] = 0
                 elif result == "Tie":
                     tie_count[0] += 1
+                    bet_amount[0] = 0
                 previous_count[0] = count[0]
 
                 # Save previous count to a text file
@@ -141,9 +171,11 @@ def game_loop():
             elif result == "Double Down":
                 stood[0] = True
                 pyautogui.click(double_down)
+                bet_amount[0] = bet_amount[0] * 2
             elif result == "Split":
                 # Implement split
-                previous_count[0] = count[0]            
+                previous_count[0] = count[0]   
+                bet_amount.append(bet_amount[0])         
                 pyautogui.click(split)
                 sleep(2)
                 hands = []
@@ -152,7 +184,7 @@ def game_loop():
                     screenshot = sct.grab({'top': 510, 'left': 490, 'width': 70, 'height': 20})
                     img = np.array(screenshot)
                     text = pytesseract.image_to_string(img, config='--psm 6')
-                    if "2" in text:
+                    if str(len(hands) + 2) in text:
                         hands.append("Blackjack")
                         previous_count[0] += 1
 
@@ -160,31 +192,39 @@ def game_loop():
                 hands = split_hand(hands)
                 print(hands)
                 evaluate_game_state(reader, count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
-                for hand in hands:
+                for i, hand in enumerate(hands):
                     if hand == "Blackjack" and dealer_amount[0] != "Blackjack":
                         print("Win")
                         win_count[0] += 1
+                        profit_loss[0] += bet_amount[i] + bet_amount[i] / 2
                     elif hand != "Blackjack" and dealer_amount[0] == "Blackjack":
                         print("Loss")
                         loss_count[0] += 1
+                        profit_loss[0] -= bet_amount[i]
                     elif hand == "Blackjack" and dealer_amount[0] == "Blackjack":
                         print("Tie")
                         tie_count[0] += 1
                     elif hand > 21:
                         print("Loss")
                         loss_count[0] += 1
+                        profit_loss[0] -= bet_amount[i]
                     elif dealer_amount[0] > 21:
                         print("Win")
                         win_count[0] += 1
+                        profit_loss[0] += bet_amount[i]
                     elif hand > dealer_amount[0]:
                         print("Win")
                         win_count[0] += 1
+                        profit_loss[0] += bet_amount[i]
                     elif hand < dealer_amount[0]:
                         print("Loss")
                         loss_count[0] += 1
+                        profit_loss[0] -= bet_amount[i]
                     elif hand == dealer_amount[0]:
                         print("Tie")
                         tie_count[0] += 1
+                bet_amount[0] = 0
+                del bet_amount[1:]
                 break
 
             # Clear hands
@@ -221,8 +261,10 @@ if __name__ == "__main__":
     with open('cardcounting/src/blackjack/files/prevcount.txt', 'w') as file:
         file.write('')
 
-    previous_count = [0]
     reader = easyocr.Reader(['en'])
+    profit_loss = [0]
+    bet_amount = [0]
+    previous_count = [0]
     count = [previous_count[0]]
     stood = [False]
     player_hand = []
@@ -240,6 +282,6 @@ if __name__ == "__main__":
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
-    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count)
+    display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, win_count, loss_count, tie_count, bet_amount, profit_loss)
 
     listener.join()
