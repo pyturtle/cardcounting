@@ -42,56 +42,22 @@ def preprocess_image(img):
     inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
-def extract_cards(preprocessed_img, spacing):
-    """
-    Extracts individual cards from a preprocessed image and arranges them horizontally with a specified spacing.
 
-    Args:
-        preprocessed_img (numpy.ndarray): The preprocessed image containing the cards.
-        spacing (int): The spacing between the extracted cards.
-        contour_count (list): A mutable list to store the number of contours found.
-
-    Returns:
-        numpy.ndarray: The image with the extracted cards arranged horizontally.
-
-    """
+def extract_cards(preprocessed_img):
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    bounding_boxes = [cv2.boundingRect(cnt) for cnt in contours]
+    # List to store each card's image
+    card_images = []
 
-    bounding_boxes = sorted(bounding_boxes, key=lambda x: x[0])
-
-    # bounding_boxes.insert(0, bounding_boxes[0])
-
-    total_width = sum(bbox[2] for bbox in bounding_boxes) + spacing * (len(bounding_boxes) - 1)
-    
-    original_width = preprocessed_img.shape[1]
-    if total_width > original_width:
-        spacing = (original_width - sum(bbox[2] for bbox in bounding_boxes)) // (len(bounding_boxes) - 1)
-    
-
-    new_x_positions = []
-    current_x = 30
-    for i, bbox in enumerate(bounding_boxes):
-        new_x_positions.append(current_x)
-        current_x += bbox[2] + spacing  # width of the bounding box + spacing
-
-
-    white_background = np.ones((preprocessed_img.shape[0], original_width, 3), dtype=np.uint8) * 255
-
-
-    for i, (x, y, w, h) in enumerate(bounding_boxes):
-        # if i == 0:
-        #     card_region = cv2.imread("cardcounting/src/blackjack/files/bounding_box_1.jpg")
-        #     card_region = cv2.resize(card_region, (w, h))
-        #     white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_BGR2RGB)
-        #     continue
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        # Extract each card image from the preprocessed image
         card_region = preprocessed_img[y:y+h, x:x+w]
-        white_background[y:y+h, new_x_positions[i]:new_x_positions[i]+w] = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
-    
-    scale_factor = 3.0  # Adjust the scale factor as desired
-    scaled_image = cv2.resize(white_background, None, fx=scale_factor, fy=scale_factor)
-    return scaled_image
+        # Convert the region to RGB if necessary (if your preprocessed image is not already in RGB)
+        card_image = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
+        card_images.append(card_image)
+
+    return card_images
 
 
 def check_win_loss_tie(player_amount, dealer_amount, stood):
@@ -252,7 +218,7 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
         
 
 
-def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split = False):
+def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split = False):
     """
     Makes a decision based on the current state of the game.
 
@@ -268,17 +234,13 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
     Returns:
         str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
     """
-    sleep(2)
+    sleep(3)
     with mss.mss() as sct:
         
         # Grab the cards region
         cards_img = np.array(sct.grab(cards_region))
         preprocessed_img = preprocess_image(cards_img)
-        final_img = extract_cards(preprocessed_img, 10)
-        card_text, confidence = reader.readtext(final_img, width_ths=2, text_threshold=0.7, low_text=0.02, link_threshold = 0.9, allowlist='0123456789AJQK', batch_size=8)[0][1:]
-        print(card_text, confidence)
-        if confidence < 0.5:
-            print("Error: Could not read cards")
+        card_images = extract_cards(preprocessed_img)
 
         # Grab the player and dealer count regions
         player_dealer_img = np.array(sct.grab(player_dealer_count_region))
@@ -289,9 +251,13 @@ def evaluate_game_state(reader ,count, cards_remaining, player_hand, dealer_hand
         cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
 
 
-    # Calculate the running count
-    cards = re.findall(r'10|[2-9AJQK]', card_text)
-    # cards.pop(0)
+    # Extract the card numbers from the card images
+    cards = []
+    for i, card in enumerate(reversed(card_images)):
+        card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
+        card_number = re.findall(r'10|[2-9AJQK]', card_number)[0]
+        cards.append(card_number)
+
     print(cards)
 
     if split != True:

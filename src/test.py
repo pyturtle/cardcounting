@@ -14,6 +14,24 @@ def preprocess_image(img):
     inverted_with_black_bar = np.vstack((black_bar, inverted, black_bar))
     return inverted_with_black_bar
 
+
+def extract_card_images(preprocessed_img):
+    contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # List to store each card's image
+    card_images = []
+
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        # Extract each card image from the preprocessed image
+        card_region = preprocessed_img[y:y+h, x:x+w]
+        # Convert the region to RGB if necessary (if your preprocessed image is not already in RGB)
+        card_image = cv2.cvtColor(card_region, cv2.COLOR_GRAY2BGR)
+        card_images.append(card_image)
+
+    return card_images
+
+
 def extract_cards(preprocessed_img, spacing):
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -85,11 +103,15 @@ while True:
         screenshot = sct.grab(monitor)
         img = np.array(screenshot)
         preprocessed_img = preprocess_image(img)
-        final_img = extract_cards(preprocessed_img, 10)
-        reader = easyocr.Reader(['en'])
-        text, conf = reader.readtext(final_img, width_ths=2, link_threshold = 0.9, text_threshold=0.7, low_text = .02, allowlist='0123456789AJQK')[0][1:]
-        print(text, conf)
-        cards = re.findall(r'10|[2-9AJQK]', text)
+
+        card_images = extract_card_images(preprocessed_img)
+        cards = []
+        for i, card in enumerate(reversed(card_images)):
+            card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
+            card_number = re.findall(r'10|[2-9AJQK]', card_number)[0]
+            cards.append(card_number)
+
+
         # cards = [card if card != '0' else 'Q' for card in cards]
         # print(cards)  
 
@@ -99,8 +121,6 @@ while True:
         print(cards)
         cv2.imshow("Original Screenshot", img)
         cv2.imshow("Preprocessed Screenshot", preprocessed_img)
-        cv2.imshow("Final Image", final_img)
-
 
         count_img = np.array(sct.grab(player_dealer_count_region))
         count_text = pytesseract.image_to_string(count_img, config='--psm 6')
@@ -116,6 +136,9 @@ while True:
         print(player_amount, dealer_amount)
 
         print(cards_remaining_text)
+
+        for i,card in enumerate(card_images):
+            cv2.imshow(f"Card {i}", card)
         cv2.imshow("Cards Remaining", cards_remaining_img)
         cv2.imshow("Player/Dealer Count", count_img)
 
