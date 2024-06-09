@@ -238,14 +238,10 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     with mss.mss() as sct:
         
         # Grab the cards region
-        cards_img = np.array(sct.grab(cards_region))
-        preprocessed_img = preprocess_image(cards_img)
-        card_images = extract_cards(preprocessed_img)
-
-        # Grab the player and dealer count regions
         while True:
-            player_dealer_img = np.array(sct.grab(player_dealer_count_region))
-            player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
+            cards_img = np.array(sct.grab(cards_region))
+            preprocessed_img = preprocess_image(cards_img)
+            card_images = extract_cards(preprocessed_img)
             cards = []
             for card in reversed(card_images):
                 card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
@@ -253,14 +249,16 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
                 if find_number:
                     card_number = find_number[0]
                     cards.append(card_number)
-                    break
-                continue
+            if len(cards) == len(card_images):
+                break
 
+        # Grab the player and dealer count regions
+        player_dealer_img = np.array(sct.grab(player_dealer_count_region))
+        player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
 
         # Grab the cards remaining region
         cards_remaining_img = np.array(sct.grab(cards_remaining_region))
         cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
-
 
 
     print(cards)

@@ -13,6 +13,11 @@ import pytesseract
 import numpy as np
 import re
 
+card_count_values = {
+    '2': 1, '3': 1, '4': 1, '5': 1, '6': 1,
+    '7': 0, '8': 0, '9': 0,
+    '10': -1, 'J': -1, 'Q': -1, 'K': -1, 'A': -1
+}
 
 chat = (500, 840)
 hit = (520, 715)
@@ -54,6 +59,7 @@ def place_bet(amount):
     with open('cardcounting/src/blackjack/files/profitLoss.txt', 'a') as file:
         file.write(str(profit_loss[0]) + '\n')
 
+    print(f"Placing bet {amount}")
     pyautogui.click(chat)
     pyautogui.typewrite(f"/blackjack {amount}")
     pyautogui.press('enter')
@@ -61,7 +67,7 @@ def place_bet(amount):
     sleep(1)
 def split_hand(hands, split_count=2):
     while len(hands) < split_count:
-        sleep(2)
+        sleep(4)
         count[0] = previous_count[0]
         result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
         print(result)
@@ -211,6 +217,8 @@ def game_loop():
                 hands = split_hand(hands)
                 print(hands)
                 evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+                for card in dealer_hand[1:]:
+                    previous_count[0] += card_count_values[card]
                 for i, hand in enumerate(hands):
                     if hand == "Blackjack" and dealer_amount[0] != "Blackjack":
                         print("Win")
