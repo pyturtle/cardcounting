@@ -135,19 +135,19 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
             else:
                 return "Hit"
         elif player_total in [18]:
-            if dealer_showing in  [3, 4, 5, 6] and len(player_hand) == 2:
+            if dealer_showing in  [2, 3, 4, 5, 6] and len(player_hand) == 2:
                 return "Double Down"
-            elif dealer_showing in [2] and true_count >= 0 and len(player_hand) == 2:
-                return "Double Down"
-            elif dealer_showing in [7, 8]:
+            elif dealer_showing in [2, 3, 4, 5, 6, 7, 8]:
                 return "Stand"
             else:
                 return "Hit"
         elif player_total in [19]:
-            if dealer_showing in [5, 6] and true_count >= 1 and len(player_hand) == 2:
+            if dealer_showing in [5, 6] and true_count >= 1 and len(player_hand) == 1:
                 return "Double Down"
-            elif dealer_showing in [4] and true_count >= 4 and len(player_hand) == 2:
+            elif dealer_showing in [4] and true_count >= 3 and len(player_hand) == 2:
                 return "Double Down"
+            else:
+                return "Stand"
         else:
             return "Hit"
 
@@ -193,7 +193,7 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
         else:
             return "Hit"
     elif 13 <= player_total <= 16:
-        if player_total == 13 and true_count <= -1 and dealer_showing == 2:
+        if player_total == 13 and true_count <= 0 and dealer_showing == 2:
             return "Hit"
         elif player_total == 16 :
             if dealer_showing == 7 and true_count >= 9:
@@ -202,7 +202,7 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
                 return "Stand"
             elif dealer_showing == 9 and true_count >= 4:
                 return "Stand"
-            elif dealer_showing == 10 and true_count > 0:
+            elif dealer_showing == 10 and true_count >= 0:
                 return "Stand"
             elif dealer_showing in [2, 3, 4, 5, 6]:
                 return "Stand"
@@ -234,7 +234,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
     Returns:
         str: The decision made by the function. Possible values are "Tie", "Win", "Loss", or "Playing".
     """
-    sleep(2)
+    sleep(1)
     with mss.mss() as sct:
         
         # Grab the cards region
@@ -243,21 +243,25 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
         card_images = extract_cards(preprocessed_img)
 
         # Grab the player and dealer count regions
-        player_dealer_img = np.array(sct.grab(player_dealer_count_region))
-        player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
+        while True:
+            player_dealer_img = np.array(sct.grab(player_dealer_count_region))
+            player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
+            cards = []
+            for card in reversed(card_images):
+                card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
+                find_number = re.findall(r'10|[2-9AJQK]', card_number)
+                if find_number:
+                    card_number = find_number[0]
+                    cards.append(card_number)
+                    break
+                continue
+
 
         # Grab the cards remaining region
         cards_remaining_img = np.array(sct.grab(cards_remaining_region))
         cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
 
 
-    # Extract the card numbers from the card images
-    cards = []
-    for card in reversed(card_images):
-        card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
-        print(card_number)
-        card_number = re.findall(r'10|[2-9AJQK]', card_number)[0]
-        cards.append(card_number)
 
     print(cards)
 

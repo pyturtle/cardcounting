@@ -31,10 +31,10 @@ def deposit(amount):
     pyautogui.press('enter')
 
 def place_bet(amount):
-    if amount < 100:
+    if amount < 200:
         amount = 100
-    elif amount > 1000:
-        amount = 1000
+    elif amount > 800:
+        amount = 800
     bet_amount[0] = amount
 
     if amount_withdrawn[0] + profit_loss[0] > amount * 4:
@@ -45,9 +45,14 @@ def place_bet(amount):
 
 
     if amount_withdrawn[0] + profit_loss[0] < amount * 4:
-        withdraw(amount * 4)
-        amount_withdrawn[0] += amount * 4
+        withdraw_amount = amount * 4 - (amount_withdrawn[0] + profit_loss[0])
+        withdraw(withdraw_amount)
+        amount_withdrawn[0] += withdraw_amount  
         sleep(3)
+
+    # Save previous count to a text file
+    with open('cardcounting/src/blackjack/files/profitLoss.txt', 'a') as file:
+        file.write(str(profit_loss[0]) + '\n')
 
     pyautogui.click(chat)
     pyautogui.typewrite(f"/blackjack {amount}")
@@ -56,8 +61,10 @@ def place_bet(amount):
     sleep(1)
 def split_hand(hands, split_count=2):
     while len(hands) < split_count:
+        sleep(2)
         count[0] = previous_count[0]
         result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+        print(result)
         if result not in ["Hit", "Double Down", "Split", "Stand"]:
             previous_count[0] = count[0]
             hands.append(player_amount[0])
@@ -147,7 +154,8 @@ def game_loop():
     while game[0]:
         previous_count[0] = count[0]
         stood[0] = False
-        place_bet(round((count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52)) * 75))
+        sleep(4)
+        place_bet(round(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52) * 200))
         while game[0]:
             count[0] = previous_count[0]
             result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)

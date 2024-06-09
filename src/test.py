@@ -107,7 +107,7 @@ while True:
         card_images = extract_card_images(preprocessed_img)
         cards = []
         for i, card in enumerate(reversed(card_images)):
-            card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
+            card_number = pytesseract.image_to_string(card, config='--psm 7 -c tessedit_char_whitelist=0123456789AJQK')
             card_number = re.findall(r'10|[2-9AJQK]', card_number)[0]
             cards.append(card_number)
 
