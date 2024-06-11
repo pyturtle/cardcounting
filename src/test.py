@@ -129,6 +129,9 @@ while True:
         print(numbers)
         print (count_text.split("V"))
 
+        screenshot = np.array(sct.grab({'top': 505, 'left': 490, 'width': 70, 'height': 30}))
+        text = pytesseract.image_to_string(screenshot, config='--psm 6')
+        print(text)
 
         cards_remaining_img = np.array(sct.grab(cards_remaining_region))
         cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')

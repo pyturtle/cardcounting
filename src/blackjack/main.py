@@ -38,8 +38,8 @@ def deposit(amount):
 def place_bet(amount):
     if amount < 200:
         amount = 100
-    elif amount > 800:
-        amount = 800
+    elif amount > 1000:
+        amount = 1000
     bet_amount[0] = amount
 
     if amount_withdrawn[0] + profit_loss[0] > amount * 4:
@@ -67,13 +67,22 @@ def place_bet(amount):
     sleep(1)
 def split_hand(hands, split_count=2):
     while len(hands) < split_count:
+
         sleep(4)
         count[0] = previous_count[0]
         result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
+
         print(result)
         if result not in ["Hit", "Double Down", "Split", "Stand"]:
             previous_count[0] = count[0]
-            hands.append(player_amount[0])
+            with mss.mss() as sct:
+                screenshot = np.array(sct.grab({'top': 505, 'left': 490, 'width': 70, 'height': 30}))
+                text = pytesseract.image_to_string(screenshot, config='--psm 6')
+                if '1' in text:
+                    hands.append("Blackjack")
+                    previous_count[0] -= 1
+                else:
+                    hands.append(player_amount[0])
             continue
         if result == "Hit":
             pyautogui.click(hit)
@@ -90,7 +99,7 @@ def split_hand(hands, split_count=2):
                     amount = list(map(int, re.findall(r'\d+', text)))[0]
                     difference = amount - previous
                 
-                if difference < 6:
+                if difference < 7:
                     previous_count[0] += 1
                 elif difference > 9:
                     previous_count[0] -= 1    
@@ -139,7 +148,7 @@ def split_hand(hands, split_count=2):
                 text = pytesseract.image_to_string(img, config='--psm 6')
                 if str(len(hands) + 2) in text:
                     hands.append("Blackjack")
-                    previous_count[0] += 1
+                    previous_count[0] -= 1
 
             split_count += 1
 
@@ -198,32 +207,33 @@ def game_loop():
                 pyautogui.click(double_down)
                 bet_amount[0] = bet_amount[0] * 2
             elif result == "Split":
+                if player_hand == ['A', 'A']:
+                    print("Splitting Aces")
                 # Implement split
                 previous_count[0] = count[0]   
-                bet_amount.append(bet_amount[0])         
+                bet_amount.append(bet_amount[0])      
                 pyautogui.click(split)
                 sleep(2)
                 hands = []
-
                 with mss.mss() as sct:
-                    screenshot = sct.grab({'top': 510, 'left': 490, 'width': 70, 'height': 20})
+                    screenshot = sct.grab({'top': 505, 'left': 490, 'width': 70, 'height': 30})
                     img = np.array(screenshot)
                     text = pytesseract.image_to_string(img, config='--psm 6')
                     if str(len(hands) + 2) in text:
                         hands.append("Blackjack")
-                        previous_count[0] += 1
+                        previous_count[0] -= 1
 
-                
                 hands = split_hand(hands)
                 print(hands)
                 evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
                 for card in dealer_hand[1:]:
-                    previous_count[0] += card_count_values[card]
+                    previous_count[0] += card_count_values[card]  
+                count[0] = previous_count[0]
                 for i, hand in enumerate(hands):
                     if hand == "Blackjack" and dealer_amount[0] != "Blackjack":
                         print("Win")
                         win_count[0] += 1
-                        profit_loss[0] += bet_amount[i] + bet_amount[i] / 2
+                        profit_loss[0] += bet_amount[i] + round(bet_amount[i] / 2 - 0.1)
                     elif hand != "Blackjack" and dealer_amount[0] == "Blackjack":
                         print("Loss")
                         loss_count[0] += 1

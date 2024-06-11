@@ -148,6 +148,8 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
                 return "Double Down"
             else:
                 return "Stand"
+        elif player_total in [20]:
+            return "Stand"
         else:
             return "Hit"
 
@@ -247,11 +249,22 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
                 card_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
                 find_number = re.findall(r'10|[2-9AJQK]', card_number)
                 if find_number:
-                    card_number = find_number[0]
-                    cards.append(card_number)
-            if len(cards) == len(card_images):
+                    cards.append(find_number[0])
+            
+            sleep(0.5)
+            cards_img = np.array(sct.grab(cards_region))
+            preprocessed_img = preprocess_image(cards_img)
+            card_images = extract_cards(preprocessed_img)
+            cards2 = []
+            for card in reversed(card_images):
+                cards_number = pytesseract.image_to_string(card, config='--psm 6 -c tessedit_char_whitelist=0123456789AJQK')
+                find_number = re.findall(r'10|[2-9AJQK]', cards_number)
+                if find_number:
+                    cards2.append(find_number[0])
+            if cards == cards2 and len(cards) == len(card_images):
                 break
-
+            else:
+                print("Retrying")
         # Grab the player and dealer count regions
         player_dealer_img = np.array(sct.grab(player_dealer_count_region))
         player_dealer_text = pytesseract.image_to_string(player_dealer_img, config='--psm 6')
@@ -259,7 +272,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
         # Grab the cards remaining region
         cards_remaining_img = np.array(sct.grab(cards_remaining_region))
         cards_remaining_text = pytesseract.image_to_string(cards_remaining_img, config='--psm 6 -c tessedit_char_whitelist=0123456789')
-
+        cards_remaining[0] = int(cards_remaining_text)
 
     print(cards)
 
@@ -280,7 +293,6 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
             return "Loss"
 
     player_amount[0], dealer_amount[0] =list(map(int, re.findall(r'\d+', player_dealer_text)))
-    cards_remaining[0] = int(cards_remaining_text)
 
     # Figure out the player's hand and the dealer's hand
     player_hand.clear()
@@ -314,9 +326,6 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
 
     if split:
         for card in player_hand[1:]:
-            count[0] += card_count_values[card]
-        
-        for card in dealer_hand[1:]:
             count[0] += card_count_values[card]
 
     result = check_win_loss_tie(player_amount, dealer_amount, stood)
