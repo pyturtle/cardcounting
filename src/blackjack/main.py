@@ -25,56 +25,73 @@ stand = (615, 715)
 double_down = (750, 715)
 split = (855, 715)
 
-def withdraw(amount):
-    pyautogui.click(chat)
-    pyautogui.typewrite(f"/withdraw {amount}")
-    pyautogui.press('enter')
+def click(pos):
+    x, y = pos
+    pyautogui.click(x, y)
+    pyautogui.click(x, y)
 
-def deposit(amount):
-    pyautogui.click(chat)
-    pyautogui.typewrite(f"/deposit {amount}")
-    pyautogui.press('enter')
+def withdraw(bet_amount, in_game=False):
+    amount_withdrawn[0] += bet_amount
+    if in_game:
+        click(chat)
+        pyautogui.typewrite(f"/withdraw {bet_amount}")
+        pyautogui.press('enter')
+        sleep(1)
+    else:
+        click((280,740))
+        sleep(1)
+        click(chat)
+        pyautogui.typewrite(f"/withdraw {bet_amount}")
+        pyautogui.press('enter')
+        sleep(0.5)
+        click((280,710))
+        sleep(3)
+
+def deposit(bet_amount):
+    if amount_withdrawn[0] + profit_loss[0] > bet_amount:
+        deposit_amount = amount_withdrawn[0] + profit_loss[0] - bet_amount
+        amount_withdrawn[0] -= deposit_amount
+        click(chat)
+        pyautogui.typewrite(f"/deposit {deposit_amount}")
+        pyautogui.press('enter')
+
+
 
 def place_bet(amount):
-    if amount < 200:
-        amount = 100
-    elif amount > 1000:
-        amount = 1000
-    bet_amount[0] = amount
-
-    if amount_withdrawn[0] + profit_loss[0] > amount * 4:
-        deposit_amount = amount_withdrawn[0] + profit_loss[0] - amount * 4
-        deposit(deposit_amount)
-        amount_withdrawn[0] -= deposit_amount
-        sleep(3)
-
-
-    if amount_withdrawn[0] + profit_loss[0] < amount * 4:
-        withdraw_amount = amount * 4 - (amount_withdrawn[0] + profit_loss[0])
-        withdraw(withdraw_amount)
-        amount_withdrawn[0] += withdraw_amount  
-        sleep(3)
-
     # Save previous count to a text file
     with open('cardcounting/src/blackjack/files/profitLoss.txt', 'a') as file:
         file.write(str(profit_loss[0]) + '\n')
 
+    if amount_withdrawn[0] + profit_loss[0] < amount:
+        withdraw(amount, in_game=True)
     print(f"Placing bet {amount}")
-    pyautogui.click(chat)
+    click(chat)
     pyautogui.typewrite(f"/blackjack {amount}")
     pyautogui.press('enter')
-    
-    sleep(1)
+
+
+
+def calculate_amount():
+    amount = round(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52) * 300)
+    if amount < 600:
+        amount = 100
+    elif amount > 2100:
+        amount = 2100
+    if cards_remaining[0] < 3:
+        amount = 100
+    bet_amount[0] = amount
+
+
+
 def split_hand(hands, split_count=2):
     while len(hands) < split_count:
 
-        sleep(4)
+        sleep(2)
         count[0] = previous_count[0]
         result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
 
         print(result)
         if result not in ["Hit", "Double Down", "Split", "Stand"]:
-            previous_count[0] = count[0]
             with mss.mss() as sct:
                 screenshot = np.array(sct.grab({'top': 505, 'left': 490, 'width': 70, 'height': 30}))
                 text = pytesseract.image_to_string(screenshot, config='--psm 6')
@@ -82,10 +99,11 @@ def split_hand(hands, split_count=2):
                     hands.append("Blackjack")
                     previous_count[0] -= 1
                 else:
+                    previous_count[0] = count[0]
                     hands.append(player_amount[0])
             continue
         if result == "Hit":
-            pyautogui.click(hit)
+            click(hit)
             previous = player_amount[0]
             dummy_count = [0]
             result = evaluate_game_state(dummy_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
@@ -109,12 +127,13 @@ def split_hand(hands, split_count=2):
         elif result == "Stand":
             previous_count[0] = count[0]
             hands.append(player_amount[0])
-            pyautogui.click(stand)
+            click(stand)
             continue
         elif result == "Double Down":
             previous_count[0] = count[0]   
+            withdraw(bet_amount[len(hands)])
             bet_amount[len(hands)] *= 2
-            pyautogui.click(double_down)
+            click(double_down)
             previous = player_amount[0]
             dummy_count = [0]
             result = evaluate_game_state(dummy_count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood, split=True)
@@ -137,9 +156,10 @@ def split_hand(hands, split_count=2):
                 hands.append(player_amount[0])
                 continue
         elif result == "Split":
+            withdraw(bet_amount[len(hands)])
             bet_amount.append(bet_amount[len(hands)])
             previous_count[0] = count[0]
-            pyautogui.click(split)
+            click(split)
 
             # Check if the player has blackjack right after splitting the hand
             with mss.mss() as sct:
@@ -165,12 +185,15 @@ def game_loop():
     Returns:
         None
     """
-    sleep(2)
+    sleep(3)
     while game[0]:
         previous_count[0] = count[0]
         stood[0] = False
-        sleep(4)
-        place_bet(round(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52) * 200))
+        calculate_amount()
+        deposit(bet_amount[0])
+        sleep(16)
+        place_bet(bet_amount[0])
+        sleep(2)
         while game[0]:
             count[0] = previous_count[0]
             result = evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player_amount, dealer_amount, stood)
@@ -198,21 +221,23 @@ def game_loop():
 
                 break
             if result == "Hit":
-                pyautogui.click(hit)
+                click(hit)
             elif result == "Stand":
                 stood[0] = True
-                pyautogui.click(stand)
+                click(stand)
             elif result == "Double Down":
                 stood[0] = True
-                pyautogui.click(double_down)
+                withdraw(bet_amount[0])
+                click(double_down)
                 bet_amount[0] = bet_amount[0] * 2
             elif result == "Split":
                 if player_hand == ['A', 'A']:
                     print("Splitting Aces")
                 # Implement split
+                withdraw(bet_amount[0])
                 previous_count[0] = count[0]   
                 bet_amount.append(bet_amount[0])      
-                pyautogui.click(split)
+                click(split)
                 sleep(2)
                 hands = []
                 with mss.mss() as sct:
@@ -298,7 +323,7 @@ if __name__ == "__main__":
     dealer_hand = []
     player_amount = [0]
     dealer_amount = [0]
-    cards_remaining = [156]
+    cards_remaining = [0]
     game = [True]
     win_count = [0]
     loss_count = [0]
