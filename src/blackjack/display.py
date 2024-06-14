@@ -53,7 +53,7 @@ def display_overlay(count, cards_remaining, player_hand, dealer_hand, player_amo
         cv2.putText(overlay_img, f"Total Games Played: {total_games}", (30, 630), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
 
         cv2.imshow("Count Overlay", overlay_img)
-        cv2.moveWindow("Count Overlay", -400, 0)
+        cv2.moveWindow("Count Overlay", -500, 0)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
         time.sleep(0.1)

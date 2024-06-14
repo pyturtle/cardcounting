@@ -99,10 +99,10 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
     """
     player_total = player_amount[0]
     dealer_showing = card_values[dealer_hand[0]]
-
+    
     
     # Check for splitting
-    if len(player_hand) == 2 and player_hand[0] == player_hand[1]:
+    if len(player_hand) == 2 and card_values[player_hand[0]] == card_values[player_hand[1]]:
         if player_hand[0] in ['A', '8']:
             return "Split"
         elif player_hand[0] in ['2', '3', '7'] and dealer_showing in [2, 3, 4, 5, 6, 7]:
@@ -111,9 +111,9 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
             return "Split"
         elif player_hand[0] in ['6'] and dealer_showing in [2, 3, 4, 5, 6]:
             return "Split"
-        elif player_hand[0] in ['9'] and dealer_showing not in [7, 10, 'A']:
+        elif player_hand[0] in ['9'] and dealer_showing not in [7, 10, 11]:
             return "Split"
-        elif true_count >= 4 and player_hand[0] == '10':
+        elif true_count >= 4 and player_hand[0] in ['10', 'J', 'Q', 'K']:
             if dealer_showing == 6:
                 return "Split"
             elif dealer_showing == 5 and true_count >= 5:
@@ -261,7 +261,7 @@ def evaluate_game_state(count, cards_remaining, player_hand, dealer_hand, player
                 find_number = re.findall(r'10|[2-9AJQK]', cards_number)
                 if find_number:
                     cards2.append(find_number[0])
-            if cards == cards2 and len(cards) == len(card_images):
+            if cards2 == cards and len(cards) == len(card_images):
                 break
             else:
                 print("Retrying")

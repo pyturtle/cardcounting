@@ -36,7 +36,7 @@ def withdraw(bet_amount, in_game=False):
         click(chat)
         pyautogui.typewrite(f"/withdraw {bet_amount}")
         pyautogui.press('enter')
-        sleep(1)
+        sleep(1.5)
     else:
         click((280,740))
         sleep(1)
@@ -72,12 +72,12 @@ def place_bet(amount):
 
 
 def calculate_amount():
-    amount = round(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52) * 300)
-    if amount < 600:
+    amount = round(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52) * 1000)
+    if amount < 2000:
         amount = 100
-    elif amount > 2100:
-        amount = 2100
-    if cards_remaining[0] < 3:
+    elif amount > 5000:
+        amount = 5000
+    if cards_remaining[0] < 3 and count[0] < 2:
         amount = 100
     bet_amount[0] = amount
 
@@ -146,7 +146,7 @@ def split_hand(hands, split_count=2):
                 amount = list(map(int, re.findall(r'\d+', text)))[0]
                 difference = amount - previous
             
-                if difference < 6:
+                if difference < 7:
                     previous_count[0] += 1
                 elif difference > 9:
                     previous_count[0] -= 1    
@@ -185,13 +185,13 @@ def game_loop():
     Returns:
         None
     """
-    sleep(3)
+    sleep(10)
     while game[0]:
         previous_count[0] = count[0]
         stood[0] = False
         calculate_amount()
         deposit(bet_amount[0])
-        sleep(16)
+        sleep(17)
         place_bet(bet_amount[0])
         sleep(2)
         while game[0]:
@@ -289,7 +289,7 @@ def game_loop():
                 del bet_amount[1:]
                 break
 
-            sleep(2)
+            sleep(1)
         
 
 def on_press(key):
@@ -316,7 +316,7 @@ if __name__ == "__main__":
     profit_loss = [0]
     bet_amount = [0]
     amount_withdrawn = [0]
-    previous_count = [0]
+    previous_count = [-1]
     count = [previous_count[0]]
     stood = [False]
     player_hand = []
