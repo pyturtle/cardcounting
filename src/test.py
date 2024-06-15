@@ -107,10 +107,10 @@ while True:
         card_images = extract_card_images(preprocessed_img)
         cards = []
         print(len(card_images))
-        for i, card in enumerate(reversed(card_images)):
-            card_number = pytesseract.image_to_string(card, config='--psm 7 -c tessedit_char_whitelist=0123456789AJQK')
-            card_number = re.findall(r'10|[2-9AJQK]', card_number)[0]
-            cards.append(card_number)
+        # for i, card in enumerate(reversed(card_images)):
+        #     card_number = pytesseract.image_to_string(card, config='--psm 7 -c tessedit_char_whitelist=0123456789AJQK')
+        #     card_number = re.findall(r'10|[2-9AJQK]', card_number)[0]
+        #     cards.append(card_number)
 
 
         # cards = [card if card != '0' else 'Q' for card in cards]
@@ -129,7 +129,7 @@ while True:
         print(numbers)
         print (count_text.split("V"))
 
-        screenshot = np.array(sct.grab({'top': 505, 'left': 490, 'width': 70, 'height': 30}))
+        screenshot = np.array(sct.grab({'top': 510, 'left': 490, 'width': 70, 'height': 20}))
         text = pytesseract.image_to_string(screenshot, config='--psm 6')
         print(text)
 

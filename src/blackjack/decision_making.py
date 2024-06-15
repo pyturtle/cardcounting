@@ -184,8 +184,8 @@ def make_decision(true_count, player_amount, player_hand, dealer_hand, ace_count
     elif player_total == 12:
         if dealer_showing in [7,8,9,10,11]:
             return "Hit"
-        elif dealer_showing in [4] and true_count < 0:
-            return "Hit"
+        elif dealer_showing in [4] and true_count > 0:
+            return "Stand"
         elif dealer_showing in [2] and true_count >= 2:
             return "Stand"
         elif dealer_showing in [3] and true_count >= 3:

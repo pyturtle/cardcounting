@@ -61,6 +61,9 @@ def place_bet(amount):
     # Save previous count to a text file
     with open('cardcounting/src/blackjack/files/profitLoss.txt', 'a') as file:
         file.write(str(profit_loss[0]) + '\n')
+    
+    with open('cardcounting/src/blackjack/files/true_count.txt', 'a') as file:
+        file.write(str(round((count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52)), 2)) + '\n')
 
     if amount_withdrawn[0] + profit_loss[0] < amount:
         withdraw(amount, in_game=True)
@@ -72,11 +75,11 @@ def place_bet(amount):
 
 
 def calculate_amount():
-    amount = round(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52) * 1000)
-    if amount < 2000:
+    amount = round(count[0]/((cards_remaining[0] if cards_remaining[0] else 156)/52) * 2600)
+    if amount < 5200:
         amount = 100
-    elif amount > 5000:
-        amount = 5000
+    elif amount > 13000:
+        amount = 13000
     if cards_remaining[0] < 3 and count[0] < 2:
         amount = 100
     bet_amount[0] = amount
@@ -160,7 +163,7 @@ def split_hand(hands, split_count=2):
             bet_amount.append(bet_amount[len(hands)])
             previous_count[0] = count[0]
             click(split)
-
+            sleep(2)
             # Check if the player has blackjack right after splitting the hand
             with mss.mss() as sct:
                 screenshot = sct.grab({'top': 510, 'left': 490, 'width': 70, 'height': 20})
@@ -255,7 +258,7 @@ def game_loop():
                     previous_count[0] += card_count_values[card]  
                 count[0] = previous_count[0]
                 for i, hand in enumerate(hands):
-                    if hand == "Blackjack" and dealer_amount[0] != "Blackjack":
+                    if hand == "Blackjack" and dealer_amount[0] not in ["Blackjack", 21]:
                         print("Win")
                         win_count[0] += 1
                         profit_loss[0] += bet_amount[i] + round(bet_amount[i] / 2 - 0.1)
@@ -263,7 +266,7 @@ def game_loop():
                         print("Loss")
                         loss_count[0] += 1
                         profit_loss[0] -= bet_amount[i]
-                    elif hand == "Blackjack" and dealer_amount[0] == "Blackjack":
+                    elif hand == "Blackjack" and dealer_amount[0] in ["Blackjack", 21] :
                         print("Tie")
                         tie_count[0] += 1
                     elif hand > 21:
@@ -316,7 +319,7 @@ if __name__ == "__main__":
     profit_loss = [0]
     bet_amount = [0]
     amount_withdrawn = [0]
-    previous_count = [-1]
+    previous_count = [2]
     count = [previous_count[0]]
     stood = [False]
     player_hand = []
